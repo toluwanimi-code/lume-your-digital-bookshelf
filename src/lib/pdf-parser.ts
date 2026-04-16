@@ -198,8 +198,35 @@ export function cleanAndStructureText(rawText: string): Block[] {
   // b) Sentence-end + capital letter on next line => real paragraph break
   text = text.replace(/([.?!"”'’])\n(?=["“'‘(]?[A-Z])/g, '$1\n\n');
 
+  // PROBLEM 2 & 3: Pre-isolate chapter titles and POV labels with hard breaks
+  // so they survive the joining pass below.
+  {
+    const lines = text.split('\n');
+    const isolated: string[] = [];
+    for (let k = 0; k < lines.length; k++) {
+      const t = lines[k].trim();
+      const next = (lines[k + 1] || '').trim();
+      const isChapterLine = !!t && (looksLikeChapter(t) || isChapterTitle(t, true));
+      if (isChapterLine) {
+        if (isolated.length && isolated[isolated.length - 1].trim() !== '') isolated.push('');
+        isolated.push(t);
+        isolated.push('');
+        // If the very next non-empty line is a POV label, isolate it too
+        let m = k + 1;
+        while (m < lines.length && lines[m].trim() === '') m++;
+        if (m < lines.length && isPovLabel(lines[m].trim())) {
+          isolated.push(lines[m].trim());
+          isolated.push('');
+          k = m;
+        }
+        continue;
+      }
+      isolated.push(lines[k]);
+    }
+    text = isolated.join('\n');
+  }
+
   // a) Join non-paragraph line breaks.
-  // Process line by line so we can inspect each previous line's ending.
   const rawLines = text.split('\n');
   const joined: string[] = [];
   for (let i = 0; i < rawLines.length; i++) {
@@ -209,18 +236,24 @@ export function cleanAndStructureText(rawText: string): Block[] {
       continue;
     }
     const prev = joined[joined.length - 1];
-    // Empty line => paragraph break, keep as-is
     if (prev.trim() === '' || line.trim() === '') {
       joined.push(line);
       continue;
     }
 
+    // Never join into or out of a chapter/POV line
+    const prevT = prev.trim();
+    const lineT = line.trim();
+    if (looksLikeChapter(prevT) || isChapterTitle(prevT, true) || isPovLabel(prevT) ||
+        looksLikeChapter(lineT) || isChapterTitle(lineT, true) || isPovLabel(lineT)) {
+      joined.push(line);
+      continue;
+    }
+
     const prevTrim = prev.trimEnd();
-    const lastChar = prevTrim.slice(-1);
     const lastWord = (prevTrim.match(/([A-Za-z]+)[^A-Za-z]*$/)?.[1] || '').toLowerCase();
     const startsLower = /^[a-z]/.test(line.trimStart());
 
-    // Hyphenated word continuation
     if (prevTrim.endsWith('-') && /^[a-z]/.test(line.trimStart())) {
       joined[joined.length - 1] = prevTrim.slice(0, -1) + line.trimStart();
       continue;
@@ -228,15 +261,15 @@ export function cleanAndStructureText(rawText: string): Block[] {
 
     const endsLowerOrComma = /[a-z,;:]$/.test(prevTrim);
     const isConjunction = CONJUNCTIONS.has(lastWord);
-    const nextLineIsContinuation = startsLower;
 
-    if (endsLowerOrComma || isConjunction || nextLineIsContinuation) {
+    if (endsLowerOrComma || isConjunction || startsLower) {
       joined[joined.length - 1] = prevTrim + ' ' + line.trimStart();
     } else {
       joined.push(line);
     }
   }
   text = joined.join('\n');
+
 
   // Normalize multiple newlines to exactly two (paragraph separator)
   text = text.replace(/\n{2,}/g, '\n\n');
