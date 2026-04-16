@@ -5,6 +5,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs
 
 export type Block =
   | { type: 'chapter'; text: string }
+  | { type: 'pov'; text: string }
   | { type: 'paragraph'; text: string };
 
 export interface ParsedPDF {
