@@ -5,6 +5,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs
 
 export type Block =
   | { type: 'chapter'; text: string }
+  | { type: 'pov'; text: string }
   | { type: 'paragraph'; text: string };
 
 export interface ParsedPDF {
@@ -106,12 +107,81 @@ async function extractRawText(page: any): Promise<string> {
   return sortedLines.join('\n');
 }
 
+// Common English words excluded from POV detection
+const COMMON_WORDS = new Set([
+  'the','and','but','or','nor','yet','so','for','of','in','to','with','on','at',
+  'by','from','as','is','was','were','be','been','being','this','that','these',
+  'those','then','there','here','him','her','his','hers','they','them','their',
+  'when','while','where','what','which','who','whom','because','though','although',
+  'after','before','again','still','just','only','very','really','well','okay',
+  'yes','no','not','too','also','about','into','over','under','across','through',
+  'one','two','three','four','five','six','seven','eight','nine','ten',
+  'chapter','part','book','section','prologue','epilogue','preface',
+]);
+
+function looksLikeChapter(line: string): boolean {
+  const t = line.trim().replace(/\.$/, '');
+  if (!t) return false;
+  if (/^(chapter|part|book|section)\s+([a-z]+|\d+|[ivxlcdm]+)$/i.test(t)) return true;
+  return false;
+}
+
+function isPovLabel(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  const words = t.split(/\s+/);
+  if (words.length < 1 || words.length > 2) return false;
+  for (const w of words) {
+    if (!/^[A-Z][A-Za-z'’\-]{1,}$/.test(w)) return false;
+    if (COMMON_WORDS.has(w.toLowerCase())) return false;
+  }
+  return true;
+}
+
+/** Strip Table of Contents block: "Contents" / "Table of Contents" + 3+ chapter entries. */
+function stripTableOfContents(text: string): string {
+  const lines = text.split('\n');
+  const out: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (/^(table of contents|contents)$/i.test(line)) {
+      let j = i + 1;
+      let chapterCount = 0;
+      let lastChapterIdx = i;
+      while (j < lines.length) {
+        const l = lines[j].trim();
+        if (!l) { j++; continue; }
+        const stripped = l.replace(/[\s.·•…]+\d+\s*$/, '').trim();
+        if (looksLikeChapter(stripped) || /^(prologue|epilogue|preface|introduction|interlude|foreword|afterword)\b/i.test(stripped)) {
+          chapterCount++;
+          lastChapterIdx = j;
+          j++;
+          continue;
+        }
+        break;
+      }
+      if (chapterCount >= 3) {
+        i = lastChapterIdx + 1;
+        continue;
+      }
+    }
+    out.push(lines[i]);
+    i++;
+  }
+  return out.join('\n');
+}
+
 /**
  * Step 1: Clean raw extracted text.
- * Step 2: Split into paragraph array.
+ * Step 2: Split into block array (chapter | pov | paragraph).
  */
 export function cleanAndStructureText(rawText: string): Block[] {
   let text = rawText;
+
+  // PROBLEM 1: Strip Table of Contents before anything else
+  text = stripTableOfContents(text);
+
 
   // c.1) Strip standalone page numbers (lines containing only digits / roman-ish)
   text = text.replace(/^\s*\d{1,4}\s*$/gm, '');
@@ -128,8 +198,35 @@ export function cleanAndStructureText(rawText: string): Block[] {
   // b) Sentence-end + capital letter on next line => real paragraph break
   text = text.replace(/([.?!"”'’])\n(?=["“'‘(]?[A-Z])/g, '$1\n\n');
 
+  // PROBLEM 2 & 3: Pre-isolate chapter titles and POV labels with hard breaks
+  // so they survive the joining pass below.
+  {
+    const lines = text.split('\n');
+    const isolated: string[] = [];
+    for (let k = 0; k < lines.length; k++) {
+      const t = lines[k].trim();
+      const next = (lines[k + 1] || '').trim();
+      const isChapterLine = !!t && (looksLikeChapter(t) || isChapterTitle(t, true));
+      if (isChapterLine) {
+        if (isolated.length && isolated[isolated.length - 1].trim() !== '') isolated.push('');
+        isolated.push(t);
+        isolated.push('');
+        // If the very next non-empty line is a POV label, isolate it too
+        let m = k + 1;
+        while (m < lines.length && lines[m].trim() === '') m++;
+        if (m < lines.length && isPovLabel(lines[m].trim())) {
+          isolated.push(lines[m].trim());
+          isolated.push('');
+          k = m;
+        }
+        continue;
+      }
+      isolated.push(lines[k]);
+    }
+    text = isolated.join('\n');
+  }
+
   // a) Join non-paragraph line breaks.
-  // Process line by line so we can inspect each previous line's ending.
   const rawLines = text.split('\n');
   const joined: string[] = [];
   for (let i = 0; i < rawLines.length; i++) {
@@ -139,18 +236,24 @@ export function cleanAndStructureText(rawText: string): Block[] {
       continue;
     }
     const prev = joined[joined.length - 1];
-    // Empty line => paragraph break, keep as-is
     if (prev.trim() === '' || line.trim() === '') {
       joined.push(line);
       continue;
     }
 
+    // Never join into or out of a chapter/POV line
+    const prevT = prev.trim();
+    const lineT = line.trim();
+    if (looksLikeChapter(prevT) || isChapterTitle(prevT, true) || isPovLabel(prevT) ||
+        looksLikeChapter(lineT) || isChapterTitle(lineT, true) || isPovLabel(lineT)) {
+      joined.push(line);
+      continue;
+    }
+
     const prevTrim = prev.trimEnd();
-    const lastChar = prevTrim.slice(-1);
     const lastWord = (prevTrim.match(/([A-Za-z]+)[^A-Za-z]*$/)?.[1] || '').toLowerCase();
     const startsLower = /^[a-z]/.test(line.trimStart());
 
-    // Hyphenated word continuation
     if (prevTrim.endsWith('-') && /^[a-z]/.test(line.trimStart())) {
       joined[joined.length - 1] = prevTrim.slice(0, -1) + line.trimStart();
       continue;
@@ -158,15 +261,15 @@ export function cleanAndStructureText(rawText: string): Block[] {
 
     const endsLowerOrComma = /[a-z,;:]$/.test(prevTrim);
     const isConjunction = CONJUNCTIONS.has(lastWord);
-    const nextLineIsContinuation = startsLower;
 
-    if (endsLowerOrComma || isConjunction || nextLineIsContinuation) {
+    if (endsLowerOrComma || isConjunction || startsLower) {
       joined[joined.length - 1] = prevTrim + ' ' + line.trimStart();
     } else {
       joined.push(line);
     }
   }
   text = joined.join('\n');
+
 
   // Normalize multiple newlines to exactly two (paragraph separator)
   text = text.replace(/\n{2,}/g, '\n\n');
@@ -184,12 +287,15 @@ export function cleanAndStructureText(rawText: string): Block[] {
   const blocks: Block[] = [];
   for (let i = 0; i < rawBlocks.length; i++) {
     const block = rawBlocks[i];
-    const isolated = true; // already separated by \n\n
-    // A "block" might still contain internal newlines if it was a single chapter line
     const singleLine = !block.includes('\n');
 
-    if (singleLine && isChapterTitle(block, isolated)) {
+    if (singleLine && (looksLikeChapter(block) || isChapterTitle(block, true))) {
       blocks.push({ type: 'chapter', text: block });
+      continue;
+    }
+    // POV label — only valid immediately after a chapter
+    if (singleLine && isPovLabel(block) && blocks.length > 0 && blocks[blocks.length - 1].type === 'chapter') {
+      blocks.push({ type: 'pov', text: block });
       continue;
     }
     if (block.length >= 20) {

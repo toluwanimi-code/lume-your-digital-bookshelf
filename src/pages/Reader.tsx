@@ -195,6 +195,24 @@ export default function ReaderPage() {
                   >
                     {block.text}
                   </h2>
+                ) : block.type === 'pov' ? (
+                  <p
+                    key={i}
+                    style={{
+                      fontFamily: "'Lora', serif",
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      fontStyle: 'italic',
+                      letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                      textAlign: 'center',
+                      color: '#9C8B7A',
+                      marginTop: '-16px',
+                      marginBottom: '40px',
+                    }}
+                  >
+                    {block.text}
+                  </p>
                 ) : (
                   <p
                     key={i}
