@@ -12,11 +12,13 @@ export default function ReaderPage() {
   const [book, setBook] = useState<Book | null>(null);
   const [parsedPDF, setParsedPDF] = useState<ParsedPDF | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [paragraphs, setParagraphs] = useState<string[]>([]);
+  const [paragraphs, setParagraphs] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUI, setShowUI] = useState(true);
   const hideTimeout = useRef<ReturnType<typeof setTimeout>>();
   const contentRef = useRef<HTMLDivElement>(null);
+  const chaptersFoundRef = useRef(false);
+  const chaptersScannedRef = useRef(false);
 
   // Load book
   useEffect(() => {
