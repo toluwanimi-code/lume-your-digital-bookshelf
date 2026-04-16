@@ -3,10 +3,58 @@ import * as pdfjsLib from 'pdfjs-dist';
 // Configure worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs`;
 
+export type Block =
+  | { type: 'chapter'; text: string }
+  | { type: 'paragraph'; text: string };
+
 export interface ParsedPDF {
   title: string;
   totalPages: number;
-  getPageParagraphs: (pageNum: number) => Promise<string[]>;
+  getPageParagraphs: (pageNum: number) => Promise<Block[]>;
+}
+
+const ROMAN_RE = /^M{0,4}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/;
+const NUMBER_WORDS = new Set([
+  'one','two','three','four','five','six','seven','eight','nine','ten',
+  'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen',
+  'eighteen','nineteen','twenty','thirty','forty','fifty',
+]);
+const NAMED_SECTIONS = new Set([
+  'PROLOGUE','EPILOGUE','PREFACE','INTRODUCTION','INTERLUDE',
+  'FOREWORD','AFTERWORD','APPENDIX','ACKNOWLEDGMENTS','CONTENTS',
+]);
+
+/**
+ * Detect whether a single trimmed line looks like a chapter title.
+ * `isolated` = true means the line stands alone between blank lines.
+ */
+export function isChapterTitle(line: string, isolated: boolean): boolean {
+  const t = line.trim();
+  if (!t || t.length > 60) return false;
+  const words = t.split(/\s+/);
+  if (words.length > 8) return false;
+
+  // "Chapter 1" / "Chapter One" / "CHAPTER I"
+  if (/^(chapter|part|book|section)\s+([a-z]+|\d+|[ivxlcdm]+)\.?$/i.test(t)) return true;
+
+  // Roman numerals alone
+  if (/^[IVXLCDM]+\.?$/.test(t.replace(/\.$/, '')) && ROMAN_RE.test(t.replace(/\.$/, ''))) return true;
+
+  // Single all-caps named section
+  if (NAMED_SECTIONS.has(t.replace(/[^A-Z]/g, ''))) return true;
+
+  // Number word alone, e.g. "ONE", "TWO"
+  if (words.length === 1 && NUMBER_WORDS.has(t.toLowerCase())) return true;
+
+  // Isolated short line starting with capital, fewer than 6 words
+  if (isolated && words.length < 6 && /^[A-Z]/.test(t) && !/[.?!,:;]$/.test(t)) {
+    // All-caps OR Title Case
+    const allCaps = t === t.toUpperCase() && /[A-Z]/.test(t);
+    const titleCase = words.every(w => /^[A-Z]/.test(w) || /^(of|the|and|a|an|in|to|for)$/i.test(w));
+    if (allCaps || titleCase) return true;
+  }
+
+  return false;
 }
 
 const CONJUNCTIONS = new Set([
@@ -62,7 +110,7 @@ async function extractRawText(page: any): Promise<string> {
  * Step 1: Clean raw extracted text.
  * Step 2: Split into paragraph array.
  */
-export function cleanAndStructureText(rawText: string): string[] {
+export function cleanAndStructureText(rawText: string): Block[] {
   let text = rawText;
 
   // c.1) Strip standalone page numbers (lines containing only digits / roman-ish)
@@ -127,13 +175,29 @@ export function cleanAndStructureText(rawText: string): string[] {
   // Final space cleanup
   text = text.replace(/[ \t]+/g, ' ');
 
-  // Step 2: split into paragraphs
-  const paragraphs = text
+  // Step 2: split into blocks (chapter or paragraph)
+  const rawBlocks = text
     .split('\n\n')
     .map(p => p.trim())
-    .filter(p => p.length >= 20);
+    .filter(Boolean);
 
-  return paragraphs;
+  const blocks: Block[] = [];
+  for (let i = 0; i < rawBlocks.length; i++) {
+    const block = rawBlocks[i];
+    const isolated = true; // already separated by \n\n
+    // A "block" might still contain internal newlines if it was a single chapter line
+    const singleLine = !block.includes('\n');
+
+    if (singleLine && isChapterTitle(block, isolated)) {
+      blocks.push({ type: 'chapter', text: block });
+      continue;
+    }
+    if (block.length >= 20) {
+      blocks.push({ type: 'paragraph', text: block });
+    }
+  }
+
+  return blocks;
 }
 
 export async function parsePDF(data: ArrayBuffer): Promise<ParsedPDF> {

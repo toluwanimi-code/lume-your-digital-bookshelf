@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { toast } from 'sonner';
 import { getBook, updateBookProgress, type Book } from '@/lib/db';
-import { parsePDF, type ParsedPDF } from '@/lib/pdf-parser';
+import { parsePDF, type ParsedPDF, type Block } from '@/lib/pdf-parser';
 
 export default function ReaderPage() {
   const { id } = useParams<{ id: string }>();
@@ -11,11 +12,13 @@ export default function ReaderPage() {
   const [book, setBook] = useState<Book | null>(null);
   const [parsedPDF, setParsedPDF] = useState<ParsedPDF | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [paragraphs, setParagraphs] = useState<string[]>([]);
+  const [paragraphs, setParagraphs] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUI, setShowUI] = useState(true);
   const hideTimeout = useRef<ReturnType<typeof setTimeout>>();
   const contentRef = useRef<HTMLDivElement>(null);
+  const chaptersFoundRef = useRef(false);
+  const chaptersScannedRef = useRef(false);
 
   // Load book
   useEffect(() => {
@@ -41,11 +44,37 @@ export default function ReaderPage() {
   useEffect(() => {
     if (!parsedPDF || currentPage < 1) return;
     (async () => {
-      const paras = await parsedPDF.getPageParagraphs(currentPage);
-      setParagraphs(paras);
+      const blocks = await parsedPDF.getPageParagraphs(currentPage);
+      setParagraphs(blocks);
+      if (blocks.some(b => b.type === 'chapter')) chaptersFoundRef.current = true;
       contentRef.current?.scrollTo(0, 0);
     })();
   }, [parsedPDF, currentPage]);
+
+  // After full book load attempt, if no chapters detected anywhere, show toast
+  useEffect(() => {
+    if (!parsedPDF || !book || chaptersScannedRef.current) return;
+    chaptersScannedRef.current = true;
+    (async () => {
+      // Quick scan: sample up to 12 pages spread across the book
+      const total = parsedPDF.totalPages;
+      const samples = Math.min(12, total);
+      const step = Math.max(1, Math.floor(total / samples));
+      for (let p = 1; p <= total; p += step) {
+        if (chaptersFoundRef.current) return;
+        try {
+          const blocks = await parsedPDF.getPageParagraphs(p);
+          if (blocks.some(b => b.type === 'chapter')) {
+            chaptersFoundRef.current = true;
+            return;
+          }
+        } catch {}
+      }
+      if (!chaptersFoundRef.current) {
+        toast("Chapters couldn't be detected. Reading in continuous mode.", { duration: 3000 });
+      }
+    })();
+  }, [parsedPDF, book]);
 
   // Auto-save progress
   useEffect(() => {
@@ -146,19 +175,40 @@ export default function ReaderPage() {
         {book?.type === 'pdf' && (
           <div className="font-reading text-base sm:text-lg leading-relaxed sm:leading-[1.9] tracking-wide">
             {paragraphs.length > 0 ? (
-              paragraphs.map((para, i) => (
-                <p
-                  key={i}
-                  style={{
-                    marginBottom: '1.4em',
-                    textIndent: 0,
-                    whiteSpace: 'normal',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {para}
-                </p>
-              ))
+              paragraphs.map((block, i) =>
+                block.type === 'chapter' ? (
+                  <h2
+                    key={i}
+                    style={{
+                      fontFamily: "'Lora', serif",
+                      fontSize: '22px',
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      textAlign: 'center',
+                      color: '#D97706',
+                      marginTop: '64px',
+                      marginBottom: '32px',
+                      paddingBottom: '12px',
+                      borderBottom: '1px solid #D9770640',
+                    }}
+                  >
+                    {block.text}
+                  </h2>
+                ) : (
+                  <p
+                    key={i}
+                    style={{
+                      marginBottom: '1.4em',
+                      textIndent: 0,
+                      whiteSpace: 'normal',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {block.text}
+                  </p>
+                )
+              )
             ) : (
               <p className="text-muted-foreground italic text-center mt-20">
                 No readable text on this page.
