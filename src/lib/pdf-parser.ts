@@ -175,13 +175,29 @@ export function cleanAndStructureText(rawText: string): string[] {
   // Final space cleanup
   text = text.replace(/[ \t]+/g, ' ');
 
-  // Step 2: split into paragraphs
-  const paragraphs = text
+  // Step 2: split into blocks (chapter or paragraph)
+  const rawBlocks = text
     .split('\n\n')
     .map(p => p.trim())
-    .filter(p => p.length >= 20);
+    .filter(Boolean);
 
-  return paragraphs;
+  const blocks: Block[] = [];
+  for (let i = 0; i < rawBlocks.length; i++) {
+    const block = rawBlocks[i];
+    const isolated = true; // already separated by \n\n
+    // A "block" might still contain internal newlines if it was a single chapter line
+    const singleLine = !block.includes('\n');
+
+    if (singleLine && isChapterTitle(block, isolated)) {
+      blocks.push({ type: 'chapter', text: block });
+      continue;
+    }
+    if (block.length >= 20) {
+      blocks.push({ type: 'paragraph', text: block });
+    }
+  }
+
+  return blocks;
 }
 
 export async function parsePDF(data: ArrayBuffer): Promise<ParsedPDF> {

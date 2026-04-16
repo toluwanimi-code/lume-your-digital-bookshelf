@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { toast } from 'sonner';
 import { getBook, updateBookProgress, type Book } from '@/lib/db';
-import { parsePDF, type ParsedPDF } from '@/lib/pdf-parser';
+import { parsePDF, type ParsedPDF, type Block } from '@/lib/pdf-parser';
 
 export default function ReaderPage() {
   const { id } = useParams<{ id: string }>();
