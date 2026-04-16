@@ -287,12 +287,15 @@ export function cleanAndStructureText(rawText: string): Block[] {
   const blocks: Block[] = [];
   for (let i = 0; i < rawBlocks.length; i++) {
     const block = rawBlocks[i];
-    const isolated = true; // already separated by \n\n
-    // A "block" might still contain internal newlines if it was a single chapter line
     const singleLine = !block.includes('\n');
 
-    if (singleLine && isChapterTitle(block, isolated)) {
+    if (singleLine && (looksLikeChapter(block) || isChapterTitle(block, true))) {
       blocks.push({ type: 'chapter', text: block });
+      continue;
+    }
+    // POV label — only valid immediately after a chapter
+    if (singleLine && isPovLabel(block) && blocks.length > 0 && blocks[blocks.length - 1].type === 'chapter') {
+      blocks.push({ type: 'pov', text: block });
       continue;
     }
     if (block.length >= 20) {
