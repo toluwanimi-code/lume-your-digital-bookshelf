@@ -11,7 +11,7 @@ export default function ReaderPage() {
   const [book, setBook] = useState<Book | null>(null);
   const [parsedPDF, setParsedPDF] = useState<ParsedPDF | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageText, setPageText] = useState('');
+  const [paragraphs, setParagraphs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUI, setShowUI] = useState(true);
   const hideTimeout = useRef<ReturnType<typeof setTimeout>>();
@@ -41,8 +41,8 @@ export default function ReaderPage() {
   useEffect(() => {
     if (!parsedPDF || currentPage < 1) return;
     (async () => {
-      const text = await parsedPDF.getPageText(currentPage);
-      setPageText(text);
+      const paras = await parsedPDF.getPageParagraphs(currentPage);
+      setParagraphs(paras);
       contentRef.current?.scrollTo(0, 0);
     })();
   }, [parsedPDF, currentPage]);
@@ -145,9 +145,19 @@ export default function ReaderPage() {
       >
         {book?.type === 'pdf' && (
           <div className="font-reading text-base sm:text-lg leading-relaxed sm:leading-[1.9] tracking-wide">
-            {pageText ? (
-              pageText.split('\n\n').filter(Boolean).map((para, i) => (
-                <p key={i} className="mb-4">{para}</p>
+            {paragraphs.length > 0 ? (
+              paragraphs.map((para, i) => (
+                <p
+                  key={i}
+                  style={{
+                    marginBottom: '1.4em',
+                    textIndent: 0,
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {para}
+                </p>
               ))
             ) : (
               <p className="text-muted-foreground italic text-center mt-20">
