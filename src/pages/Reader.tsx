@@ -175,19 +175,40 @@ export default function ReaderPage() {
         {book?.type === 'pdf' && (
           <div className="font-reading text-base sm:text-lg leading-relaxed sm:leading-[1.9] tracking-wide">
             {paragraphs.length > 0 ? (
-              paragraphs.map((para, i) => (
-                <p
-                  key={i}
-                  style={{
-                    marginBottom: '1.4em',
-                    textIndent: 0,
-                    whiteSpace: 'normal',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {para}
-                </p>
-              ))
+              paragraphs.map((block, i) =>
+                block.type === 'chapter' ? (
+                  <h2
+                    key={i}
+                    style={{
+                      fontFamily: "'Lora', serif",
+                      fontSize: '22px',
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      textAlign: 'center',
+                      color: '#D97706',
+                      marginTop: '64px',
+                      marginBottom: '32px',
+                      paddingBottom: '12px',
+                      borderBottom: '1px solid #D9770640',
+                    }}
+                  >
+                    {block.text}
+                  </h2>
+                ) : (
+                  <p
+                    key={i}
+                    style={{
+                      marginBottom: '1.4em',
+                      textIndent: 0,
+                      whiteSpace: 'normal',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {block.text}
+                  </p>
+                )
+              )
             ) : (
               <p className="text-muted-foreground italic text-center mt-20">
                 No readable text on this page.
