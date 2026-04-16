@@ -110,7 +110,7 @@ async function extractRawText(page: any): Promise<string> {
  * Step 1: Clean raw extracted text.
  * Step 2: Split into paragraph array.
  */
-export function cleanAndStructureText(rawText: string): string[] {
+export function cleanAndStructureText(rawText: string): Block[] {
   let text = rawText;
 
   // c.1) Strip standalone page numbers (lines containing only digits / roman-ish)

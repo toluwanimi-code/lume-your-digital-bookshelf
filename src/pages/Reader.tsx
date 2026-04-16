@@ -42,11 +42,37 @@ export default function ReaderPage() {
   useEffect(() => {
     if (!parsedPDF || currentPage < 1) return;
     (async () => {
-      const paras = await parsedPDF.getPageParagraphs(currentPage);
-      setParagraphs(paras);
+      const blocks = await parsedPDF.getPageParagraphs(currentPage);
+      setParagraphs(blocks);
+      if (blocks.some(b => b.type === 'chapter')) chaptersFoundRef.current = true;
       contentRef.current?.scrollTo(0, 0);
     })();
   }, [parsedPDF, currentPage]);
+
+  // After full book load attempt, if no chapters detected anywhere, show toast
+  useEffect(() => {
+    if (!parsedPDF || !book || chaptersScannedRef.current) return;
+    chaptersScannedRef.current = true;
+    (async () => {
+      // Quick scan: sample up to 12 pages spread across the book
+      const total = parsedPDF.totalPages;
+      const samples = Math.min(12, total);
+      const step = Math.max(1, Math.floor(total / samples));
+      for (let p = 1; p <= total; p += step) {
+        if (chaptersFoundRef.current) return;
+        try {
+          const blocks = await parsedPDF.getPageParagraphs(p);
+          if (blocks.some(b => b.type === 'chapter')) {
+            chaptersFoundRef.current = true;
+            return;
+          }
+        } catch {}
+      }
+      if (!chaptersFoundRef.current) {
+        toast("Chapters couldn't be detected. Reading in continuous mode.", { duration: 3000 });
+      }
+    })();
+  }, [parsedPDF, book]);
 
   // Auto-save progress
   useEffect(() => {
