@@ -146,7 +146,7 @@ export default function ReaderPage() {
         {book?.type === 'pdf' && (
           <div className="font-reading text-base sm:text-lg leading-relaxed sm:leading-[1.9] tracking-wide">
             {pageText ? (
-              pageText.split('\n').map((para, i) => (
+              pageText.split('\n\n').filter(Boolean).map((para, i) => (
                 <p key={i} className="mb-4">{para}</p>
               ))
             ) : (
