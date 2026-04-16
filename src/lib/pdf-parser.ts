@@ -107,12 +107,81 @@ async function extractRawText(page: any): Promise<string> {
   return sortedLines.join('\n');
 }
 
+// Common English words excluded from POV detection
+const COMMON_WORDS = new Set([
+  'the','and','but','or','nor','yet','so','for','of','in','to','with','on','at',
+  'by','from','as','is','was','were','be','been','being','this','that','these',
+  'those','then','there','here','him','her','his','hers','they','them','their',
+  'when','while','where','what','which','who','whom','because','though','although',
+  'after','before','again','still','just','only','very','really','well','okay',
+  'yes','no','not','too','also','about','into','over','under','across','through',
+  'one','two','three','four','five','six','seven','eight','nine','ten',
+  'chapter','part','book','section','prologue','epilogue','preface',
+]);
+
+function looksLikeChapter(line: string): boolean {
+  const t = line.trim().replace(/\.$/, '');
+  if (!t) return false;
+  if (/^(chapter|part|book|section)\s+([a-z]+|\d+|[ivxlcdm]+)$/i.test(t)) return true;
+  return false;
+}
+
+function isPovLabel(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  const words = t.split(/\s+/);
+  if (words.length < 1 || words.length > 2) return false;
+  for (const w of words) {
+    if (!/^[A-Z][A-Za-z'’\-]{1,}$/.test(w)) return false;
+    if (COMMON_WORDS.has(w.toLowerCase())) return false;
+  }
+  return true;
+}
+
+/** Strip Table of Contents block: "Contents" / "Table of Contents" + 3+ chapter entries. */
+function stripTableOfContents(text: string): string {
+  const lines = text.split('\n');
+  const out: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (/^(table of contents|contents)$/i.test(line)) {
+      let j = i + 1;
+      let chapterCount = 0;
+      let lastChapterIdx = i;
+      while (j < lines.length) {
+        const l = lines[j].trim();
+        if (!l) { j++; continue; }
+        const stripped = l.replace(/[\s.·•…]+\d+\s*$/, '').trim();
+        if (looksLikeChapter(stripped) || /^(prologue|epilogue|preface|introduction|interlude|foreword|afterword)\b/i.test(stripped)) {
+          chapterCount++;
+          lastChapterIdx = j;
+          j++;
+          continue;
+        }
+        break;
+      }
+      if (chapterCount >= 3) {
+        i = lastChapterIdx + 1;
+        continue;
+      }
+    }
+    out.push(lines[i]);
+    i++;
+  }
+  return out.join('\n');
+}
+
 /**
  * Step 1: Clean raw extracted text.
- * Step 2: Split into paragraph array.
+ * Step 2: Split into block array (chapter | pov | paragraph).
  */
 export function cleanAndStructureText(rawText: string): Block[] {
   let text = rawText;
+
+  // PROBLEM 1: Strip Table of Contents before anything else
+  text = stripTableOfContents(text);
+
 
   // c.1) Strip standalone page numbers (lines containing only digits / roman-ish)
   text = text.replace(/^\s*\d{1,4}\s*$/gm, '');
