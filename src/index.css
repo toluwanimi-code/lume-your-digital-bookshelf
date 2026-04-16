@@ -6,51 +6,51 @@
 
 @layer base {
   :root {
-    --background: 39 32% 96%;
-    --foreground: 24 10% 15%;
+    --background: 39 60% 94%;
+    --foreground: 27 10% 30%;
 
-    --card: 39 25% 93%;
-    --card-foreground: 24 10% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 27 10% 30%;
 
-    --popover: 39 32% 96%;
-    --popover-foreground: 24 10% 15%;
+    --popover: 39 60% 94%;
+    --popover-foreground: 27 10% 30%;
 
-    --primary: 32 80% 50%;
-    --primary-foreground: 39 32% 98%;
+    --primary: 36 90% 44%;
+    --primary-foreground: 39 60% 97%;
 
-    --secondary: 32 20% 88%;
-    --secondary-foreground: 24 10% 25%;
+    --secondary: 30 15% 88%;
+    --secondary-foreground: 27 10% 30%;
 
-    --muted: 32 15% 90%;
-    --muted-foreground: 24 8% 50%;
+    --muted: 30 20% 90%;
+    --muted-foreground: 27 12% 56%;
 
-    --accent: 32 60% 60%;
-    --accent-foreground: 24 10% 15%;
+    --accent: 36 90% 44%;
+    --accent-foreground: 39 60% 97%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 32 15% 85%;
-    --input: 32 15% 85%;
-    --ring: 32 80% 50%;
+    --border: 30 15% 85%;
+    --input: 30 15% 85%;
+    --ring: 36 90% 44%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 39 25% 93%;
-    --sidebar-foreground: 24 10% 15%;
-    --sidebar-primary: 32 80% 50%;
-    --sidebar-primary-foreground: 39 32% 98%;
-    --sidebar-accent: 32 20% 88%;
-    --sidebar-accent-foreground: 24 10% 25%;
-    --sidebar-border: 32 15% 85%;
-    --sidebar-ring: 32 80% 50%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 27 10% 30%;
+    --sidebar-primary: 36 90% 44%;
+    --sidebar-primary-foreground: 39 60% 97%;
+    --sidebar-accent: 30 15% 88%;
+    --sidebar-accent-foreground: 27 10% 30%;
+    --sidebar-border: 30 15% 85%;
+    --sidebar-ring: 36 90% 44%;
 
     --font-reading: 'Lora', Georgia, 'Times New Roman', serif;
     --font-ui: 'DM Sans', system-ui, sans-serif;
 
-    --reader-bg: 39 35% 95%;
-    --reader-text: 24 12% 18%;
-    --reader-progress: 32 80% 50%;
+    --reader-bg: 39 60% 94%;
+    --reader-text: 27 10% 30%;
+    --reader-progress: 36 90% 44%;
   }
 
   .dark {
