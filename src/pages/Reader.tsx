@@ -7,6 +7,7 @@ import { getBook, updateBookProgress, type Book } from '@/lib/db';
 import { parsePDF, type ParsedPDF, type Block } from '@/lib/pdf-parser';
 import TypographyPanel from '@/components/TypographyPanel';
 import { useTypography, getFontStack, SPACING_VALUES, MARGIN_VALUES } from '@/hooks/useTypography';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function ReaderPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +20,7 @@ export default function ReaderPage() {
   const [showUI, setShowUI] = useState(true);
   const [panelOpen, setPanelOpen] = useState(false);
   const { settings, update } = useTypography();
+  const { theme, themeConfig, setTheme } = useTheme();
   const hideTimeout = useRef<ReturnType<typeof setTimeout>>();
   const contentRef = useRef<HTMLDivElement>(null);
   const chaptersFoundRef = useRef(false);
@@ -132,8 +134,9 @@ export default function ReaderPage() {
 
   return (
     <div
-      className="min-h-screen reader-bg reader-text relative select-none"
+      className="min-h-screen relative select-none"
       onClick={resetHideTimer}
+      style={{ background: themeConfig.background, color: themeConfig.text }}
     >
       {/* Progress bar at very top */}
       <div className="fixed top-0 left-0 right-0 h-0.5 bg-muted z-50">
@@ -152,7 +155,7 @@ export default function ReaderPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             className="fixed top-0 left-0 right-0 z-40 px-4 pt-3 pb-2 flex items-center justify-between"
-            style={{ background: 'linear-gradient(to bottom, hsl(var(--reader-bg)), transparent)' }}
+            style={{ background: `linear-gradient(to bottom, ${themeConfig.background}, transparent)` }}
           >
             <button
               onClick={() => navigate('/')}
@@ -191,7 +194,9 @@ export default function ReaderPage() {
             style={{
               fontFamily: getFontStack(settings.font),
               fontSize: `${settings.fontSize}px`,
-              lineHeight: SPACING_VALUES[settings.spacing],
+              lineHeight: SPACING_VALUES[settings.spacing] * themeConfig.lineHeightMultiplier,
+              fontWeight: themeConfig.fontWeight,
+              color: themeConfig.text,
               letterSpacing: '0.01em',
             }}
           >
@@ -227,7 +232,7 @@ export default function ReaderPage() {
                       letterSpacing: '0.12em',
                       textTransform: 'uppercase',
                       textAlign: 'center',
-                      color: '#9C8B7A',
+                      color: '#D97706',
                       marginTop: '-16px',
                       marginBottom: '40px',
                     }}
@@ -288,7 +293,7 @@ export default function ReaderPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-4 pt-8 flex items-center justify-center gap-4"
-            style={{ background: 'linear-gradient(to top, hsl(var(--reader-bg)), transparent)' }}
+            style={{ background: `linear-gradient(to top, ${themeConfig.background}, transparent)` }}
           >
             <button
               onClick={() => goPage(-1)}
@@ -316,6 +321,8 @@ export default function ReaderPage() {
         onClose={() => setPanelOpen(false)}
         settings={settings}
         onUpdate={update}
+        theme={theme}
+        onThemeChange={setTheme}
       />
     </div>
   );
