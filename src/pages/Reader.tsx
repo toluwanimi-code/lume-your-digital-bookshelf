@@ -7,6 +7,7 @@ import { getBook, updateBookProgress, type Book } from '@/lib/db';
 import { parsePDF, type ParsedPDF, type Block } from '@/lib/pdf-parser';
 import TypographyPanel from '@/components/TypographyPanel';
 import { useTypography, getFontStack, SPACING_VALUES, MARGIN_VALUES } from '@/hooks/useTypography';
+import { useTheme } from '@/hooks/useTheme';
 
 export default function ReaderPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +20,7 @@ export default function ReaderPage() {
   const [showUI, setShowUI] = useState(true);
   const [panelOpen, setPanelOpen] = useState(false);
   const { settings, update } = useTypography();
+  const { theme, themeConfig, setTheme } = useTheme();
   const hideTimeout = useRef<ReturnType<typeof setTimeout>>();
   const contentRef = useRef<HTMLDivElement>(null);
   const chaptersFoundRef = useRef(false);
