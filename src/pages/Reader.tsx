@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { getBook, updateBookProgress, type Book } from '@/lib/db';
 import { parsePDF, type ParsedPDF, type Block } from '@/lib/pdf-parser';
+import TypographyPanel from '@/components/TypographyPanel';
+import { useTypography, getFontStack, SPACING_VALUES, MARGIN_VALUES } from '@/hooks/useTypography';
 
 export default function ReaderPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +17,8 @@ export default function ReaderPage() {
   const [paragraphs, setParagraphs] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUI, setShowUI] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const { settings, update } = useTypography();
   const hideTimeout = useRef<ReturnType<typeof setTimeout>>();
   const contentRef = useRef<HTMLDivElement>(null);
   const chaptersFoundRef = useRef(false);
