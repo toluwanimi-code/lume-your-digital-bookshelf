@@ -293,7 +293,7 @@ export default function ReaderPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-4 pt-8 flex items-center justify-center gap-4"
-            style={{ background: 'linear-gradient(to top, hsl(var(--reader-bg)), transparent)' }}
+            style={{ background: `linear-gradient(to top, ${themeConfig.background}, transparent)` }}
           >
             <button
               onClick={() => goPage(-1)}
@@ -321,6 +321,8 @@ export default function ReaderPage() {
         onClose={() => setPanelOpen(false)}
         settings={settings}
         onUpdate={update}
+        theme={theme}
+        onThemeChange={setTheme}
       />
     </div>
   );
