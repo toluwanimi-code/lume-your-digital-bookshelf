@@ -89,6 +89,61 @@ export default function TypographyPanel({ open, onClose, settings, onUpdate, the
               }}
             />
 
+            {/* Theme */}
+            <div style={{ marginBottom: '24px' }}>
+              <div style={LABEL_STYLE}>Theme</div>
+              <div style={{ display: 'flex', gap: '20px', justifyContent: 'space-between' }}>
+                {(Object.keys(THEMES) as ThemeKey[]).map((k) => {
+                  const t = THEMES[k];
+                  const active = theme === k;
+                  return (
+                    <button
+                      key={k}
+                      onClick={() => onThemeChange(k)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px',
+                        flex: 1,
+                      }}
+                      aria-label={`Theme ${k}`}
+                    >
+                      <div
+                        style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '999px',
+                          padding: '4px',
+                          border: active ? '2px solid #D97706' : '2px solid transparent',
+                          boxSizing: 'border-box',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '999px',
+                            background: t.swatch,
+                            border: t.swatchBorder ? `1px solid ${t.swatchBorder}` : 'none',
+                          }}
+                        />
+                      </div>
+                      <span style={{ fontSize: '11px', color: '#9C8B7A' }}>{k}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Font */}
             <div style={{ marginBottom: '24px' }}>
               <div style={LABEL_STYLE}>Font</div>
