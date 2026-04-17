@@ -232,7 +232,7 @@ export default function ReaderPage() {
                       letterSpacing: '0.12em',
                       textTransform: 'uppercase',
                       textAlign: 'center',
-                      color: '#9C8B7A',
+                      color: '#D97706',
                       marginTop: '-16px',
                       marginBottom: '40px',
                     }}
