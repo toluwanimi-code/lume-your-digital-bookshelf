@@ -134,8 +134,9 @@ export default function ReaderPage() {
 
   return (
     <div
-      className="min-h-screen reader-bg reader-text relative select-none"
+      className="min-h-screen relative select-none"
       onClick={resetHideTimer}
+      style={{ background: themeConfig.background, color: themeConfig.text }}
     >
       {/* Progress bar at very top */}
       <div className="fixed top-0 left-0 right-0 h-0.5 bg-muted z-50">
@@ -154,7 +155,7 @@ export default function ReaderPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             className="fixed top-0 left-0 right-0 z-40 px-4 pt-3 pb-2 flex items-center justify-between"
-            style={{ background: 'linear-gradient(to bottom, hsl(var(--reader-bg)), transparent)' }}
+            style={{ background: `linear-gradient(to bottom, ${themeConfig.background}, transparent)` }}
           >
             <button
               onClick={() => navigate('/')}
@@ -193,7 +194,9 @@ export default function ReaderPage() {
             style={{
               fontFamily: getFontStack(settings.font),
               fontSize: `${settings.fontSize}px`,
-              lineHeight: SPACING_VALUES[settings.spacing],
+              lineHeight: SPACING_VALUES[settings.spacing] * themeConfig.lineHeightMultiplier,
+              fontWeight: themeConfig.fontWeight,
+              color: themeConfig.text,
               letterSpacing: '0.01em',
             }}
           >
