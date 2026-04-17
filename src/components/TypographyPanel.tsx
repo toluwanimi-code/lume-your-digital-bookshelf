@@ -10,12 +10,15 @@ import {
   type MarginKey,
   getFontStack,
 } from '@/hooks/useTypography';
+import { THEMES, type ThemeKey } from '@/hooks/useTheme';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   settings: TypographySettings;
   onUpdate: <K extends keyof TypographySettings>(key: K, value: TypographySettings[K]) => void;
+  theme: ThemeKey;
+  onThemeChange: (t: ThemeKey) => void;
 }
 
 const LABEL_STYLE: React.CSSProperties = {
@@ -44,7 +47,7 @@ const PILL_ACTIVE: React.CSSProperties = {
   background: '#FEF3C7',
 };
 
-export default function TypographyPanel({ open, onClose, settings, onUpdate }: Props) {
+export default function TypographyPanel({ open, onClose, settings, onUpdate, theme, onThemeChange }: Props) {
   return (
     <AnimatePresence>
       {open && (
