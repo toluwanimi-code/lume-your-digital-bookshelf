@@ -310,6 +310,13 @@ export default function ReaderPage() {
           </motion.footer>
         )}
       </AnimatePresence>
+
+      <TypographyPanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        settings={settings}
+        onUpdate={update}
+      />
     </div>
   );
 }
