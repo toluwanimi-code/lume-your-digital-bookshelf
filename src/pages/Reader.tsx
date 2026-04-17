@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { getBook, updateBookProgress, type Book } from '@/lib/db';
 import { parsePDF, type ParsedPDF, type Block } from '@/lib/pdf-parser';
+import TypographyPanel from '@/components/TypographyPanel';
+import { useTypography, getFontStack, SPACING_VALUES, MARGIN_VALUES } from '@/hooks/useTypography';
 
 export default function ReaderPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +17,8 @@ export default function ReaderPage() {
   const [paragraphs, setParagraphs] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUI, setShowUI] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const { settings, update } = useTypography();
   const hideTimeout = useRef<ReturnType<typeof setTimeout>>();
   const contentRef = useRef<HTMLDivElement>(null);
   const chaptersFoundRef = useRef(false);
@@ -162,7 +166,13 @@ export default function ReaderPage() {
                 Page {currentPage} of {book?.totalPages}
               </p>
             </div>
-            <div className="w-10" />
+            <button
+              onClick={(e) => { e.stopPropagation(); setPanelOpen(true); resetHideTimer(); }}
+              className="w-10 h-10 rounded-full bg-muted/80 backdrop-blur flex items-center justify-center text-foreground"
+              aria-label="Typography settings"
+            >
+              <SlidersHorizontal className="w-5 h-5" />
+            </button>
           </motion.header>
         )}
       </AnimatePresence>
@@ -170,10 +180,21 @@ export default function ReaderPage() {
       {/* Reading content */}
       <div
         ref={contentRef}
-        className="min-h-screen px-5 sm:px-8 md:px-16 lg:px-32 py-20 max-w-3xl mx-auto overflow-y-auto scrollbar-hide"
+        className="min-h-screen py-20 max-w-3xl mx-auto overflow-y-auto scrollbar-hide"
+        style={{
+          paddingLeft: `${MARGIN_VALUES[settings.margins]}px`,
+          paddingRight: `${MARGIN_VALUES[settings.margins]}px`,
+        }}
       >
         {book?.type === 'pdf' && (
-          <div className="font-reading text-base sm:text-lg leading-relaxed sm:leading-[1.9] tracking-wide">
+          <div
+            style={{
+              fontFamily: getFontStack(settings.font),
+              fontSize: `${settings.fontSize}px`,
+              lineHeight: SPACING_VALUES[settings.spacing],
+              letterSpacing: '0.01em',
+            }}
+          >
             {paragraphs.length > 0 ? (
               paragraphs.map((block, i) =>
                 block.type === 'chapter' ? (
@@ -289,6 +310,13 @@ export default function ReaderPage() {
           </motion.footer>
         )}
       </AnimatePresence>
+
+      <TypographyPanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        settings={settings}
+        onUpdate={update}
+      />
     </div>
   );
 }
