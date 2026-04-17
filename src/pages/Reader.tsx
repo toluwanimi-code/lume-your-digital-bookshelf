@@ -166,7 +166,13 @@ export default function ReaderPage() {
                 Page {currentPage} of {book?.totalPages}
               </p>
             </div>
-            <div className="w-10" />
+            <button
+              onClick={(e) => { e.stopPropagation(); setPanelOpen(true); resetHideTimer(); }}
+              className="w-10 h-10 rounded-full bg-muted/80 backdrop-blur flex items-center justify-center text-foreground"
+              aria-label="Typography settings"
+            >
+              <SlidersHorizontal className="w-5 h-5" />
+            </button>
           </motion.header>
         )}
       </AnimatePresence>
@@ -174,10 +180,21 @@ export default function ReaderPage() {
       {/* Reading content */}
       <div
         ref={contentRef}
-        className="min-h-screen px-5 sm:px-8 md:px-16 lg:px-32 py-20 max-w-3xl mx-auto overflow-y-auto scrollbar-hide"
+        className="min-h-screen py-20 max-w-3xl mx-auto overflow-y-auto scrollbar-hide"
+        style={{
+          paddingLeft: `${MARGIN_VALUES[settings.margins]}px`,
+          paddingRight: `${MARGIN_VALUES[settings.margins]}px`,
+        }}
       >
         {book?.type === 'pdf' && (
-          <div className="font-reading text-base sm:text-lg leading-relaxed sm:leading-[1.9] tracking-wide">
+          <div
+            style={{
+              fontFamily: getFontStack(settings.font),
+              fontSize: `${settings.fontSize}px`,
+              lineHeight: SPACING_VALUES[settings.spacing],
+              letterSpacing: '0.01em',
+            }}
+          >
             {paragraphs.length > 0 ? (
               paragraphs.map((block, i) =>
                 block.type === 'chapter' ? (
