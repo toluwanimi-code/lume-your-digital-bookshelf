@@ -528,11 +528,7 @@ export default function ReaderPage() {
             <button onClick={commitHighlight} className="font-ui">Highlight</button>
             <span style={{ width: 1, height: 16, background: '#FFFFFF20' }} />
             <button
-              onClick={() => {
-                toast('Notes coming soon');
-                window.getSelection()?.removeAllRanges();
-                setSelectionBar(null);
-              }}
+              onClick={openNoteSheet}
               className="font-ui"
             >
               Add Note
