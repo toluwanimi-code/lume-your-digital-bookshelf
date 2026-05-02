@@ -22,6 +22,7 @@ export interface Highlight {
   end: number;
   text: string;
   timestamp: number;
+  note?: string;
 }
 
 const DB_NAME = 'lume-db';
