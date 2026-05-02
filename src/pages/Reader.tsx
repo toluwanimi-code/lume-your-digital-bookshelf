@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { getBook, updateBookProgress, type Book } from '@/lib/db';
 import { parsePDF, type ParsedPDF, type Block } from '@/lib/pdf-parser';
 import TypographyPanel from '@/components/TypographyPanel';
+import NoteSheet from '@/components/NoteSheet';
 import { useTypography, getFontStack, SPACING_VALUES, MARGIN_VALUES } from '@/hooks/useTypography';
 import { useTheme } from '@/hooks/useTheme';
 import { useHighlights, getHighlightColor, type Highlight } from '@/hooks/useHighlights';
@@ -30,6 +31,7 @@ export default function ReaderPage() {
   const highlightColor = getHighlightColor(theme);
   const [selectionBar, setSelectionBar] = useState<{ x: number; y: number; height: number; paragraphIndex: number; start: number; end: number; text: string } | null>(null);
   const [activeHighlight, setActiveHighlight] = useState<{ x: number; y: number; id: string } | null>(null);
+  const [noteSheet, setNoteSheet] = useState<null | { paragraphIndex: number; start: number; end: number; text: string }>(null);
 
   // Load book
   useEffect(() => {
@@ -219,6 +221,35 @@ export default function ReaderPage() {
     window.getSelection()?.removeAllRanges();
     setSelectionBar(null);
   }, [selectionBar, id, currentPage, addHl]);
+
+  const openNoteSheet = useCallback(() => {
+    if (!selectionBar) return;
+    setNoteSheet({
+      paragraphIndex: selectionBar.paragraphIndex,
+      start: selectionBar.start,
+      end: selectionBar.end,
+      text: selectionBar.text,
+    });
+    setSelectionBar(null);
+  }, [selectionBar]);
+
+  const saveNote = useCallback(async (note: string) => {
+    if (!noteSheet || !id) return;
+    const h: Highlight = {
+      id: crypto.randomUUID(),
+      bookId: id,
+      pageNum: currentPage,
+      paragraphIndex: noteSheet.paragraphIndex,
+      start: noteSheet.start,
+      end: noteSheet.end,
+      text: noteSheet.text,
+      timestamp: Date.now(),
+      note,
+    };
+    await addHl(h);
+    window.getSelection()?.removeAllRanges();
+    setNoteSheet(null);
+  }, [noteSheet, id, currentPage, addHl]);
 
   // Render paragraph text with highlight underlines
   const renderParagraphText = (text: string, paraIdx: number) => {
@@ -466,6 +497,16 @@ export default function ReaderPage() {
         onThemeChange={setTheme}
       />
 
+      <NoteSheet
+        open={!!noteSheet}
+        selectedText={noteSheet?.text || ''}
+        onCancel={() => {
+          window.getSelection()?.removeAllRanges();
+          setNoteSheet(null);
+        }}
+        onSave={saveNote}
+      />
+
       {/* Selection toolbar */}
       {selectionBar && (() => {
         const BAR_W = 180;
@@ -497,11 +538,7 @@ export default function ReaderPage() {
             <button onClick={commitHighlight} className="font-ui">Highlight</button>
             <span style={{ width: 1, height: 16, background: '#FFFFFF20' }} />
             <button
-              onClick={() => {
-                toast('Notes coming soon');
-                window.getSelection()?.removeAllRanges();
-                setSelectionBar(null);
-              }}
+              onClick={openNoteSheet}
               className="font-ui"
             >
               Add Note
