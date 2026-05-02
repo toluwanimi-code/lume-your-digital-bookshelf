@@ -123,11 +123,17 @@ export default function ReaderPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [goPage, navigate]);
 
-  // Selection detection
+  // Selection detection (selectionchange for native long-press support)
   useEffect(() => {
-    const onUp = () => {
+    let raf = 0;
+    const handle = () => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+        setSelectionBar(null);
+        return;
+      }
+      const text = sel.toString();
+      if (text.trim().length <= 1) {
         setSelectionBar(null);
         return;
       }
@@ -172,18 +178,22 @@ export default function ReaderPage() {
       const rect = range.getBoundingClientRect();
       setSelectionBar({
         x: rect.left + rect.width / 2,
-        y: rect.top - 8,
+        y: rect.top,
+        height: rect.height,
         paragraphIndex: parseInt(startP.dataset.paragraphIndex!, 10),
         start,
         end,
-        text: sel.toString(),
+        text,
       });
     };
-    document.addEventListener('mouseup', onUp);
-    document.addEventListener('touchend', onUp);
+    const onChange = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(handle);
+    };
+    document.addEventListener('selectionchange', onChange);
     return () => {
-      document.removeEventListener('mouseup', onUp);
-      document.removeEventListener('touchend', onUp);
+      document.removeEventListener('selectionchange', onChange);
+      cancelAnimationFrame(raf);
     };
   }, []);
 
