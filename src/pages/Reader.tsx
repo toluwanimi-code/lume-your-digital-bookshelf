@@ -497,6 +497,16 @@ export default function ReaderPage() {
         onThemeChange={setTheme}
       />
 
+      <NoteSheet
+        open={!!noteSheet}
+        selectedText={noteSheet?.text || ''}
+        onCancel={() => {
+          window.getSelection()?.removeAllRanges();
+          setNoteSheet(null);
+        }}
+        onSave={saveNote}
+      />
+
       {/* Selection toolbar */}
       {selectionBar && (() => {
         const BAR_W = 180;
