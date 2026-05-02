@@ -28,7 +28,7 @@ export default function ReaderPage() {
   const chaptersScannedRef = useRef(false);
   const { highlights, add: addHl, remove: removeHl } = useHighlights(id);
   const highlightColor = getHighlightColor(theme);
-  const [selectionBar, setSelectionBar] = useState<{ x: number; y: number; paragraphIndex: number; start: number; end: number; text: string } | null>(null);
+  const [selectionBar, setSelectionBar] = useState<{ x: number; y: number; height: number; paragraphIndex: number; start: number; end: number; text: string } | null>(null);
   const [activeHighlight, setActiveHighlight] = useState<{ x: number; y: number; id: string } | null>(null);
 
   // Load book
