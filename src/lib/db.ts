@@ -13,8 +13,19 @@ export interface Book {
   currentProgress: number; // 0-1
 }
 
+export interface Highlight {
+  id: string;
+  bookId: string;
+  pageNum: number;
+  paragraphIndex: number;
+  start: number;
+  end: number;
+  text: string;
+  timestamp: number;
+}
+
 const DB_NAME = 'lume-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
 
@@ -24,6 +35,10 @@ function getDB() {
       upgrade(db) {
         if (!db.objectStoreNames.contains('books')) {
           db.createObjectStore('books', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('highlights')) {
+          const store = db.createObjectStore('highlights', { keyPath: 'id' });
+          store.createIndex('bookId', 'bookId', { unique: false });
         }
       },
     });
@@ -82,4 +97,19 @@ export async function updateBookProgress(id: string, currentPage: number, curren
 export async function deleteBook(id: string): Promise<void> {
   const db = await getDB();
   await db.delete('books', id);
+}
+
+export async function getHighlights(bookId: string): Promise<Highlight[]> {
+  const db = await getDB();
+  return db.getAllFromIndex('highlights', 'bookId', bookId);
+}
+
+export async function addHighlight(h: Highlight): Promise<void> {
+  const db = await getDB();
+  await db.put('highlights', h);
+}
+
+export async function deleteHighlight(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('highlights', id);
 }

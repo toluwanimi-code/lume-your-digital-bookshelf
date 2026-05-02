@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getBook, updateBookProgress, type Book } from '@/lib/db';
 import { parsePDF, type ParsedPDF, type Block } from '@/lib/pdf-parser';
 import TypographyPanel from '@/components/TypographyPanel';
 import { useTypography, getFontStack, SPACING_VALUES, MARGIN_VALUES } from '@/hooks/useTypography';
 import { useTheme } from '@/hooks/useTheme';
+import { useHighlights, getHighlightColor, type Highlight } from '@/hooks/useHighlights';
 
 export default function ReaderPage() {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +26,10 @@ export default function ReaderPage() {
   const contentRef = useRef<HTMLDivElement>(null);
   const chaptersFoundRef = useRef(false);
   const chaptersScannedRef = useRef(false);
+  const { highlights, add: addHl, remove: removeHl } = useHighlights(id);
+  const highlightColor = getHighlightColor(theme);
+  const [selectionBar, setSelectionBar] = useState<{ x: number; y: number; paragraphIndex: number; start: number; end: number; text: string } | null>(null);
+  const [activeHighlight, setActiveHighlight] = useState<{ x: number; y: number; id: string } | null>(null);
 
   // Load book
   useEffect(() => {
@@ -117,6 +122,129 @@ export default function ReaderPage() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [goPage, navigate]);
+
+  // Selection detection
+  useEffect(() => {
+    const onUp = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+        setSelectionBar(null);
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      const findP = (node: Node | null): HTMLElement | null => {
+        let n: Node | null = node;
+        while (n && n !== contentRef.current) {
+          if (n.nodeType === 1 && (n as HTMLElement).dataset.paragraphIndex) return n as HTMLElement;
+          n = n.parentNode;
+        }
+        return null;
+      };
+      const startP = findP(range.startContainer);
+      const endP = findP(range.endContainer);
+      if (!startP || startP !== endP) { setSelectionBar(null); return; }
+      // Compute text offsets within paragraph
+      const offsetIn = (root: HTMLElement, target: Node, targetOffset: number): number => {
+        let acc = 0;
+        let found = false;
+        const walk = (node: Node) => {
+          if (found) return;
+          if (node === target) {
+            if (node.nodeType === 3) acc += targetOffset;
+            else {
+              for (let i = 0; i < targetOffset; i++) acc += (node.childNodes[i]?.textContent || '').length;
+            }
+            found = true;
+            return;
+          }
+          if (node.nodeType === 3) {
+            acc += (node.nodeValue || '').length;
+          } else {
+            node.childNodes.forEach(walk);
+          }
+        };
+        walk(root);
+        return acc;
+      };
+      const start = offsetIn(startP, range.startContainer, range.startOffset);
+      const end = offsetIn(startP, range.endContainer, range.endOffset);
+      if (end <= start) { setSelectionBar(null); return; }
+      const rect = range.getBoundingClientRect();
+      setSelectionBar({
+        x: rect.left + rect.width / 2,
+        y: rect.top - 8,
+        paragraphIndex: parseInt(startP.dataset.paragraphIndex!, 10),
+        start,
+        end,
+        text: sel.toString(),
+      });
+    };
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchend', onUp);
+    return () => {
+      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchend', onUp);
+    };
+  }, []);
+
+  // Reset selection/tooltip when page changes
+  useEffect(() => {
+    setSelectionBar(null);
+    setActiveHighlight(null);
+  }, [currentPage]);
+
+  const commitHighlight = useCallback(async () => {
+    if (!selectionBar || !id) return;
+    const h: Highlight = {
+      id: crypto.randomUUID(),
+      bookId: id,
+      pageNum: currentPage,
+      paragraphIndex: selectionBar.paragraphIndex,
+      start: selectionBar.start,
+      end: selectionBar.end,
+      text: selectionBar.text,
+      timestamp: Date.now(),
+    };
+    await addHl(h);
+    window.getSelection()?.removeAllRanges();
+    setSelectionBar(null);
+  }, [selectionBar, id, currentPage, addHl]);
+
+  // Render paragraph text with highlight underlines
+  const renderParagraphText = (text: string, paraIdx: number) => {
+    const hls = highlights
+      .filter(h => h.pageNum === currentPage && h.paragraphIndex === paraIdx && h.start < text.length)
+      .map(h => ({ ...h, end: Math.min(h.end, text.length) }))
+      .sort((a, b) => a.start - b.start);
+    if (hls.length === 0) return text;
+    const parts: React.ReactNode[] = [];
+    let cursor = 0;
+    hls.forEach((h, i) => {
+      if (h.start > cursor) parts.push(text.slice(cursor, h.start));
+      parts.push(
+        <span
+          key={h.id}
+          onClick={(e) => {
+            e.stopPropagation();
+            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            setActiveHighlight({ x: rect.left + rect.width / 2, y: rect.top - 8, id: h.id });
+          }}
+          style={{
+            textDecoration: 'underline',
+            textDecorationColor: highlightColor,
+            textDecorationThickness: '2px',
+            textUnderlineOffset: '3px',
+            cursor: 'pointer',
+          }}
+        >
+          {text.slice(h.start, h.end)}
+        </span>
+      );
+      cursor = h.end;
+    });
+    if (cursor < text.length) parts.push(text.slice(cursor));
+    return parts;
+  };
 
   const progress = book ? (currentPage / (book.totalPages || 1)) * 100 : 0;
 
@@ -242,6 +370,7 @@ export default function ReaderPage() {
                 ) : (
                   <p
                     key={i}
+                    data-paragraph-index={i}
                     style={{
                       marginBottom: '1.4em',
                       textIndent: 0,
@@ -249,7 +378,7 @@ export default function ReaderPage() {
                       wordBreak: 'break-word',
                     }}
                   >
-                    {block.text}
+                    {renderParagraphText(block.text, i)}
                   </p>
                 )
               )
@@ -324,6 +453,44 @@ export default function ReaderPage() {
         theme={theme}
         onThemeChange={setTheme}
       />
+
+      {/* Selection toolbar */}
+      {selectionBar && (
+        <div
+          className="fixed z-50"
+          style={{ left: selectionBar.x, top: selectionBar.y, transform: 'translate(-50%, -100%)' }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <button
+            onClick={commitHighlight}
+            className="px-3 py-1.5 rounded-full bg-foreground text-background text-xs font-ui font-medium shadow-lg"
+          >
+            Highlight
+          </button>
+        </div>
+      )}
+
+      {/* Highlight delete tooltip */}
+      {activeHighlight && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setActiveHighlight(null)} />
+          <div
+            className="fixed z-50"
+            style={{ left: activeHighlight.x, top: activeHighlight.y, transform: 'translate(-50%, -100%)' }}
+          >
+            <button
+              onClick={async () => {
+                await removeHl(activeHighlight.id);
+                setActiveHighlight(null);
+              }}
+              className="px-3 py-1.5 rounded-full bg-red-600 text-white text-xs font-ui font-medium shadow-lg flex items-center gap-1.5"
+            >
+              <Trash2 className="w-3 h-3" />
+              Delete
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
