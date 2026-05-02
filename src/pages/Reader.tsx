@@ -467,20 +467,48 @@ export default function ReaderPage() {
       />
 
       {/* Selection toolbar */}
-      {selectionBar && (
-        <div
-          className="fixed z-50"
-          style={{ left: selectionBar.x, top: selectionBar.y, transform: 'translate(-50%, -100%)' }}
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          <button
-            onClick={commitHighlight}
-            className="px-3 py-1.5 rounded-full bg-foreground text-background text-xs font-ui font-medium shadow-lg"
+      {selectionBar && (() => {
+        const BAR_W = 180;
+        const showBelow = selectionBar.y < 60;
+        const top = showBelow ? selectionBar.y + selectionBar.height + 8 : selectionBar.y - 8;
+        let left = selectionBar.x - BAR_W / 2;
+        if (left + BAR_W > window.innerWidth - 8) left = window.innerWidth - BAR_W - 8;
+        if (left < 8) left = 8;
+        return (
+          <div
+            className="fixed z-50"
+            style={{
+              left,
+              top,
+              transform: showBelow ? 'none' : 'translateY(-100%)',
+              background: '#1C1C1E',
+              color: '#FFFFFF',
+              borderRadius: 8,
+              padding: '8px 16px',
+              fontSize: 14,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}
+            onMouseDown={(e) => e.preventDefault()}
+            onTouchStart={(e) => e.stopPropagation()}
           >
-            Highlight
-          </button>
-        </div>
-      )}
+            <button onClick={commitHighlight} className="font-ui">Highlight</button>
+            <span style={{ width: 1, height: 16, background: '#FFFFFF20' }} />
+            <button
+              onClick={() => {
+                toast('Notes coming soon');
+                window.getSelection()?.removeAllRanges();
+                setSelectionBar(null);
+              }}
+              className="font-ui"
+            >
+              Add Note
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Highlight delete tooltip */}
       {activeHighlight && (
