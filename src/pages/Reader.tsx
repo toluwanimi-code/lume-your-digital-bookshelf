@@ -325,6 +325,8 @@ export default function ReaderPage() {
         style={{
           paddingLeft: `${MARGIN_VALUES[settings.margins]}px`,
           paddingRight: `${MARGIN_VALUES[settings.margins]}px`,
+          userSelect: 'text',
+          WebkitUserSelect: 'text',
         }}
       >
         {book?.type === 'pdf' && (
