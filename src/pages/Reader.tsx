@@ -28,7 +28,7 @@ export default function ReaderPage() {
   const chaptersScannedRef = useRef(false);
   const { highlights, add: addHl, remove: removeHl } = useHighlights(id);
   const highlightColor = getHighlightColor(theme);
-  const [selectionBar, setSelectionBar] = useState<{ x: number; y: number; paragraphIndex: number; start: number; end: number; text: string } | null>(null);
+  const [selectionBar, setSelectionBar] = useState<{ x: number; y: number; height: number; paragraphIndex: number; start: number; end: number; text: string } | null>(null);
   const [activeHighlight, setActiveHighlight] = useState<{ x: number; y: number; id: string } | null>(null);
 
   // Load book
@@ -123,11 +123,17 @@ export default function ReaderPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [goPage, navigate]);
 
-  // Selection detection
+  // Selection detection (selectionchange for native long-press support)
   useEffect(() => {
-    const onUp = () => {
+    let raf = 0;
+    const handle = () => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+        setSelectionBar(null);
+        return;
+      }
+      const text = sel.toString();
+      if (text.trim().length <= 1) {
         setSelectionBar(null);
         return;
       }
@@ -172,18 +178,22 @@ export default function ReaderPage() {
       const rect = range.getBoundingClientRect();
       setSelectionBar({
         x: rect.left + rect.width / 2,
-        y: rect.top - 8,
+        y: rect.top,
+        height: rect.height,
         paragraphIndex: parseInt(startP.dataset.paragraphIndex!, 10),
         start,
         end,
-        text: sel.toString(),
+        text,
       });
     };
-    document.addEventListener('mouseup', onUp);
-    document.addEventListener('touchend', onUp);
+    const onChange = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(handle);
+    };
+    document.addEventListener('selectionchange', onChange);
     return () => {
-      document.removeEventListener('mouseup', onUp);
-      document.removeEventListener('touchend', onUp);
+      document.removeEventListener('selectionchange', onChange);
+      cancelAnimationFrame(raf);
     };
   }, []);
 
@@ -262,7 +272,7 @@ export default function ReaderPage() {
 
   return (
     <div
-      className="min-h-screen relative select-none"
+      className="min-h-screen relative"
       onClick={resetHideTimer}
       style={{ background: themeConfig.background, color: themeConfig.text }}
     >
@@ -315,6 +325,8 @@ export default function ReaderPage() {
         style={{
           paddingLeft: `${MARGIN_VALUES[settings.margins]}px`,
           paddingRight: `${MARGIN_VALUES[settings.margins]}px`,
+          userSelect: 'text',
+          WebkitUserSelect: 'text',
         }}
       >
         {book?.type === 'pdf' && (
@@ -455,20 +467,48 @@ export default function ReaderPage() {
       />
 
       {/* Selection toolbar */}
-      {selectionBar && (
-        <div
-          className="fixed z-50"
-          style={{ left: selectionBar.x, top: selectionBar.y, transform: 'translate(-50%, -100%)' }}
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          <button
-            onClick={commitHighlight}
-            className="px-3 py-1.5 rounded-full bg-foreground text-background text-xs font-ui font-medium shadow-lg"
+      {selectionBar && (() => {
+        const BAR_W = 180;
+        const showBelow = selectionBar.y < 60;
+        const top = showBelow ? selectionBar.y + selectionBar.height + 8 : selectionBar.y - 8;
+        let left = selectionBar.x - BAR_W / 2;
+        if (left + BAR_W > window.innerWidth - 8) left = window.innerWidth - BAR_W - 8;
+        if (left < 8) left = 8;
+        return (
+          <div
+            className="fixed z-50"
+            style={{
+              left,
+              top,
+              transform: showBelow ? 'none' : 'translateY(-100%)',
+              background: '#1C1C1E',
+              color: '#FFFFFF',
+              borderRadius: 8,
+              padding: '8px 16px',
+              fontSize: 14,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}
+            onMouseDown={(e) => e.preventDefault()}
+            onTouchStart={(e) => e.stopPropagation()}
           >
-            Highlight
-          </button>
-        </div>
-      )}
+            <button onClick={commitHighlight} className="font-ui">Highlight</button>
+            <span style={{ width: 1, height: 16, background: '#FFFFFF20' }} />
+            <button
+              onClick={() => {
+                toast('Notes coming soon');
+                window.getSelection()?.removeAllRanges();
+                setSelectionBar(null);
+              }}
+              className="font-ui"
+            >
+              Add Note
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Highlight delete tooltip */}
       {activeHighlight && (
