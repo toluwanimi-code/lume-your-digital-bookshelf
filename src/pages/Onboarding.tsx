@@ -67,9 +67,9 @@ export default function Onboarding() {
             transition={{ duration: 0.2 }}
             className="flex-1 flex flex-col px-6 pt-12 pb-6"
           >
-            <div className="grid grid-cols-2 gap-3 flex-1 max-h-[420px]">
+            <div className="grid grid-cols-2 gap-3 flex-1 max-h-[420px] items-stretch">
               {/* Before */}
-              <div className="flex flex-col">
+              <div className="flex flex-col h-full">
                 <p className="text-[11px] font-medium mb-2" style={{ color: '#9CA3AF' }}>Before</p>
                 <div className="flex-1 rounded-lg p-3 overflow-hidden" style={{ background: '#F3F4F6', fontFamily: 'Arial, sans-serif', fontSize: 7, lineHeight: 1.2, color: '#374151' }}>
                   <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
@@ -79,9 +79,9 @@ export default function Onboarding() {
                 </div>
               </div>
               {/* After */}
-              <div className="flex flex-col">
+              <div className="flex flex-col h-full">
                 <p className="text-[11px] font-medium mb-2" style={{ color: '#D97706' }}>Lume</p>
-                <div className="flex-1 rounded-lg p-4 overflow-hidden" style={{ background: '#FAF3E0', fontFamily: "'Lora', serif", fontSize: 9, lineHeight: 1.7, color: '#5C5346' }}>
+                <div className="flex-1 rounded-lg p-4 overflow-hidden flex flex-col justify-center" style={{ background: '#FAF3E0', fontFamily: "'Lora', serif", fontSize: 9, lineHeight: 1.7, color: '#5C5346' }}>
                   <p>The morning light slipped through the curtains, warm and unhurried.</p>
                   <p className="mt-3">She turned the page, savoring the quiet, the stillness of the hour.</p>
                   <p className="mt-3">Some stories are not meant to be rushed.</p>
@@ -100,7 +100,7 @@ export default function Onboarding() {
 
             <button
               onClick={() => setStep(2)}
-              className="w-full font-medium"
+              className="w-full max-w-[400px] mx-auto font-medium block"
               style={{ background: '#D97706', color: '#FFFFFF', height: 52, borderRadius: 12, fontSize: 16 }}
             >
               Get Started
