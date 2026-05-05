@@ -1,19 +1,39 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Plus, Upload } from 'lucide-react';
+import { BookOpen, Plus } from 'lucide-react';
 import { useLibrary } from '@/hooks/useLibrary';
 import BookCard from '@/components/BookCard';
+import UploadProcessing from '@/components/UploadProcessing';
+import ErrorModal from '@/components/ErrorModal';
+import { validateUpload, validateExtractedText } from '@/lib/upload-errors';
+import { deleteBook } from '@/lib/db';
 
 export default function Library() {
   const navigate = useNavigate();
   const { books, loading, uploadBook, removeBook } = useLibrary();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFile = async (file: File) => {
-    if (!file.name.match(/\.(pdf|epub)$/i)) return;
-    const book = await uploadBook(file);
-    navigate(`/read/${book.id}`);
+    const err = validateUpload(file);
+    if (err) { setError(err); return; }
+    setProcessing(true);
+    try {
+      const book = await uploadBook(file);
+      const textErr = await validateExtractedText(book);
+      if (textErr) {
+        await deleteBook(book.id);
+        setProcessing(false);
+        setError(textErr);
+        return;
+      }
+      navigate(`/read/${book.id}`);
+    } catch {
+      setProcessing(false);
+      setError("This file couldn't be read. It may be damaged or incomplete. Try downloading it again.");
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,7 +45,13 @@ export default function Library() {
   const hasBooks = books.length > 0;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      className="min-h-screen bg-background flex flex-col"
+    >
       <input
         ref={inputRef}
         type="file"
@@ -77,21 +103,30 @@ export default function Library() {
           </div>
         ) : (
           /* Empty state */
-          <motion.button
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            onClick={() => inputRef.current?.click()}
-            className="w-full flex flex-col items-center justify-center py-32 text-center"
+            className="w-full flex flex-col items-center justify-center py-24 text-center"
           >
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <Upload className="w-7 h-7 text-primary" />
-            </div>
-            <p className="font-reading text-lg font-semibold text-foreground">Add your first book</p>
-            <p className="text-sm text-muted-foreground mt-1">PDF or EPUB</p>
-            <span className="mt-5 inline-flex items-center justify-center h-11 px-6 rounded-full bg-primary text-primary-foreground font-ui text-sm font-semibold shadow-md">
+            <svg width="80" height="80" viewBox="0 0 80 80" fill="none" className="mb-6" aria-hidden>
+              <path
+                d="M16 18c0-2.2 1.8-4 4-4h36c2.2 0 4 1.8 4 4v44c0 2.2-1.8 4-4 4H20c-2.2 0-4-1.8-4-4V18z"
+                stroke="#D97706"
+                strokeWidth="3"
+                fill="#FEF3C7"
+              />
+              <path d="M26 28h24M26 36h24M26 44h16" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+            <h2 className="font-reading text-xl font-semibold" style={{ color: '#5C5346' }}>Your shelf is empty</h2>
+            <p className="text-sm mt-2" style={{ color: '#9C8B7A' }}>Upload a PDF or EPUB to start reading</p>
+            <button
+              onClick={() => inputRef.current?.click()}
+              className="mt-8 w-full max-w-xs font-medium"
+              style={{ background: '#D97706', color: '#FFFFFF', height: 52, borderRadius: 12, fontSize: 16 }}
+            >
               Upload a book
-            </span>
-          </motion.button>
+            </button>
+          </motion.div>
         )}
       </main>
 
@@ -107,6 +142,9 @@ export default function Library() {
           <Plus className="w-6 h-6" />
         </motion.button>
       )}
-    </div>
+
+      <UploadProcessing open={processing} />
+      <ErrorModal open={!!error} message={error || ''} onClose={() => setError(null)} />
+    </motion.div>
   );
 }
