@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Library from "./pages/Library";
 import ReaderPage from "./pages/Reader";
 import NotFound from "./pages/NotFound";
+import Onboarding from "./pages/Onboarding";
+import { Navigate } from "react-router-dom";
 
 const queryClient = new QueryClient();
 
@@ -16,7 +18,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Library />} />
+          <Route path="/" element={<RootRoute />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/library" element={<Library />} />
           <Route path="/read/:id" element={<ReaderPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
