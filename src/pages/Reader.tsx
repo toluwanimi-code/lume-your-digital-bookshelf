@@ -302,7 +302,11 @@ export default function ReaderPage() {
   }
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
       className="min-h-screen relative"
       onClick={resetHideTimer}
       style={{ background: themeConfig.background, color: themeConfig.text }}
