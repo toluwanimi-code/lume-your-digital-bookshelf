@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Upload } from 'lucide-react';
+import { ArrowLeft, BookOpen, Upload } from 'lucide-react';
 import { useLibrary } from '@/hooks/useLibrary';
 import UploadProcessing from '@/components/UploadProcessing';
 import ErrorModal from '@/components/ErrorModal';
@@ -115,8 +115,16 @@ export default function Onboarding() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 flex flex-col px-6 pt-16 pb-10"
+            className="flex-1 flex flex-col px-6 pt-16 pb-10 relative"
           >
+            <button
+              onClick={() => setStep(1)}
+              aria-label="Back"
+              className="absolute"
+              style={{ top: 20, left: 20, color: '#5C5346' }}
+            >
+              <ArrowLeft size={24} />
+            </button>
             <div className="flex flex-col items-center gap-3 mb-12">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: '#D9770620' }}>
                 <BookOpen className="w-7 h-7" style={{ color: '#D97706' }} />
