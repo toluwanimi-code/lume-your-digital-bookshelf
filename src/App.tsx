@@ -9,6 +9,11 @@ import NotFound from "./pages/NotFound";
 import Onboarding from "./pages/Onboarding";
 import { Navigate } from "react-router-dom";
 
+function RootRoute() {
+  const onboarded = typeof window !== "undefined" && localStorage.getItem("lume-onboarded") === "true";
+  return onboarded ? <Library /> : <Navigate to="/onboarding" replace />;
+}
+
 const queryClient = new QueryClient();
 
 const App = () => (
