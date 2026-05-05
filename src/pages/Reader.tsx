@@ -572,6 +572,6 @@ export default function ReaderPage() {
           </div>
         </>
       )}
-    </div>
+    </motion.div>
   );
 }
