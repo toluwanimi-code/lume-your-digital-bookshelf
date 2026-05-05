@@ -9,6 +9,8 @@ interface BookCardProps {
 
 export default function BookCard({ book, onClick, onDelete }: BookCardProps) {
   const progress = Math.round(book.currentProgress * 100);
+  const finished = progress >= 97;
+  const notStarted = progress === 0;
 
   return (
     <motion.button
@@ -44,15 +46,6 @@ export default function BookCard({ book, onClick, onDelete }: BookCardProps) {
           {book.type}
         </span>
 
-        {/* Progress bar */}
-        {progress > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-border">
-            <div
-              className="h-full bg-primary transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        )}
       </div>
 
       {/* Info */}
@@ -62,6 +55,19 @@ export default function BookCard({ book, onClick, onDelete }: BookCardProps) {
       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
         {book.author || 'Unknown author'}
       </p>
+
+      {/* Reading progress */}
+      <div className="mt-2">
+        <div className="w-full rounded-full overflow-hidden" style={{ height: 3, background: '#E5E7EB' }}>
+          <div
+            className="h-full transition-all duration-300"
+            style={{ width: `${Math.max(progress, finished ? 100 : 0)}%`, background: '#D97706' }}
+          />
+        </div>
+        <p className="text-[11px] mt-1" style={{ color: finished ? '#D97706' : '#9C8B7A' }}>
+          {finished ? 'Finished' : notStarted ? 'Not started' : `${progress}% complete`}
+        </p>
+      </div>
     </motion.button>
   );
 }
