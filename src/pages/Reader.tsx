@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronLeft, ChevronRight, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { ArrowLeft, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getBook, updateBookProgress, type Book } from '@/lib/db';
 import { parsePDF, type ParsedPDF, type Block } from '@/lib/pdf-parser';
@@ -452,23 +452,6 @@ export default function ReaderPage() {
             EPUB rendering coming soon. PDF files are fully supported.
           </p>
         )}
-      </div>
-
-      {/* Navigation overlay - tap left/right sides */}
-      <div className="fixed inset-0 z-30 flex pointer-events-none">
-        <button
-          onClick={() => goPage(-1)}
-          className="w-1/3 h-full pointer-events-auto opacity-0 active:opacity-100 flex items-center justify-start pl-2"
-        >
-          <ChevronLeft className="w-8 h-8 text-muted-foreground/50" />
-        </button>
-        <div className="flex-1" />
-        <button
-          onClick={() => goPage(1)}
-          className="w-1/3 h-full pointer-events-auto opacity-0 active:opacity-100 flex items-center justify-end pr-2"
-        >
-          <ChevronRight className="w-8 h-8 text-muted-foreground/50" />
-        </button>
       </div>
 
       <TypographyPanel
