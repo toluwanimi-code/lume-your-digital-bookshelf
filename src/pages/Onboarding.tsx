@@ -65,6 +65,64 @@ export default function Onboarding() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
+            className="flex-1 flex flex-col items-center justify-center"
+          >
+            <BookOpen size={64} style={{ color: '#D97706' }} />
+            <h1
+              style={{
+                fontFamily: "'Lora', serif",
+                fontSize: 48,
+                fontWeight: 700,
+                color: '#3D2B1F',
+                letterSpacing: '0.04em',
+                marginTop: 16,
+              }}
+            >
+              Lume
+            </h1>
+            <p
+              style={{
+                fontFamily: "'Lora', serif",
+                fontSize: 18,
+                fontWeight: 400,
+                fontStyle: 'italic',
+                color: '#9C8B7A',
+                marginTop: 8,
+              }}
+            >
+              Reading should feel like home.
+            </p>
+
+            <button
+              onClick={() => setStep(2)}
+              className="font-semibold"
+              style={{
+                position: 'fixed',
+                bottom: 40,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: 'calc(100% - 48px)',
+                maxWidth: 400,
+                background: '#D97706',
+                color: '#FFFFFF',
+                height: 52,
+                borderRadius: 12,
+                fontSize: 17,
+                fontWeight: 600,
+              }}
+            >
+              Get Started
+            </button>
+          </motion.div>
+        )}
+
+        {step === 2 && (
+          <motion.div
+            key="s2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             className="flex-1 flex flex-col px-6 pt-12 pb-6"
           >
             <div className="grid grid-cols-2 gap-3 flex-1 max-h-[420px] items-stretch">
@@ -99,7 +157,7 @@ export default function Onboarding() {
             </div>
 
             <button
-              onClick={() => setStep(2)}
+              onClick={() => setStep(3)}
               className="w-full max-w-[400px] mx-auto font-medium block"
               style={{ background: '#D97706', color: '#FFFFFF', height: 52, borderRadius: 12, fontSize: 16 }}
             >
@@ -108,9 +166,9 @@ export default function Onboarding() {
           </motion.div>
         )}
 
-        {step === 2 && (
+        {step === 3 && (
           <motion.div
-            key="s2"
+            key="s3"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -118,7 +176,7 @@ export default function Onboarding() {
             className="flex-1 flex flex-col px-6 pt-16 pb-10 relative"
           >
             <button
-              onClick={() => setStep(1)}
+              onClick={() => setStep(2)}
               aria-label="Back"
               className="absolute"
               style={{ top: 20, left: 20, color: '#5C5346' }}
