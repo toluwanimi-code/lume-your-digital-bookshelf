@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronLeft, ChevronRight, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { ArrowLeft, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getBook, updateBookProgress, type Book } from '@/lib/db';
 import { parsePDF, type ParsedPDF, type Block } from '@/lib/pdf-parser';
@@ -311,10 +311,20 @@ export default function ReaderPage() {
       onClick={resetHideTimer}
       style={{ background: themeConfig.background, color: themeConfig.text }}
     >
-      {/* Progress bar at very top */}
-      <div className="fixed top-0 left-0 right-0 h-0.5 bg-muted z-50">
+      {/* Fixed reading progress bar at bottom of screen */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          width: '100%',
+          height: '3px',
+          background: '#E5E7EB',
+          zIndex: 9999,
+        }}
+      >
         <motion.div
-          className="h-full bg-reader-progress"
+          style={{ height: '100%', background: '#D97706' }}
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.3 }}
         />
@@ -443,54 +453,6 @@ export default function ReaderPage() {
           </p>
         )}
       </div>
-
-      {/* Navigation overlay - tap left/right sides */}
-      <div className="fixed inset-0 z-30 flex pointer-events-none">
-        <button
-          onClick={() => goPage(-1)}
-          className="w-1/3 h-full pointer-events-auto opacity-0 active:opacity-100 flex items-center justify-start pl-2"
-        >
-          <ChevronLeft className="w-8 h-8 text-muted-foreground/50" />
-        </button>
-        <div className="flex-1" />
-        <button
-          onClick={() => goPage(1)}
-          className="w-1/3 h-full pointer-events-auto opacity-0 active:opacity-100 flex items-center justify-end pr-2"
-        >
-          <ChevronRight className="w-8 h-8 text-muted-foreground/50" />
-        </button>
-      </div>
-
-      {/* Bottom bar */}
-      <AnimatePresence>
-        {showUI && (
-          <motion.footer
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-4 pt-8 flex items-center justify-center gap-4"
-            style={{ background: `linear-gradient(to top, ${themeConfig.background}, transparent)` }}
-          >
-            <button
-              onClick={() => goPage(-1)}
-              disabled={currentPage <= 1}
-              className="w-10 h-10 rounded-full bg-muted/80 backdrop-blur flex items-center justify-center text-foreground disabled:opacity-30"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <span className="text-xs font-ui text-muted-foreground tabular-nums min-w-[60px] text-center">
-              {Math.round(progress)}%
-            </span>
-            <button
-              onClick={() => goPage(1)}
-              disabled={currentPage >= (book?.totalPages || 1)}
-              className="w-10 h-10 rounded-full bg-muted/80 backdrop-blur flex items-center justify-center text-foreground disabled:opacity-30"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </motion.footer>
-        )}
-      </AnimatePresence>
 
       <TypographyPanel
         open={panelOpen}
