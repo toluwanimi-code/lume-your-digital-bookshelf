@@ -19,11 +19,10 @@ export default function ReaderPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [paragraphs, setParagraphs] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showUI, setShowUI] = useState(true);
+  const [showUI, setShowUI] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const { settings, update } = useTypography();
   const { theme, themeConfig, setTheme } = useTheme();
-  const hideTimeout = useRef<ReturnType<typeof setTimeout>>();
   const contentRef = useRef<HTMLDivElement>(null);
   const chaptersFoundRef = useRef(false);
   const chaptersScannedRef = useRef(false);
@@ -96,23 +95,19 @@ export default function ReaderPage() {
     updateBookProgress(book.id, currentPage, progress);
   }, [book, currentPage]);
 
-  // Auto-hide UI
-  const resetHideTimer = useCallback(() => {
-    setShowUI(true);
-    if (hideTimeout.current) clearTimeout(hideTimeout.current);
-    hideTimeout.current = setTimeout(() => setShowUI(false), 3000);
-  }, []);
-
-  useEffect(() => {
-    resetHideTimer();
-    return () => { if (hideTimeout.current) clearTimeout(hideTimeout.current); };
-  }, [resetHideTimer]);
-
   const goPage = useCallback((delta: number) => {
     if (!book) return;
     setCurrentPage(p => Math.max(1, Math.min(book.totalPages, p + delta)));
-    resetHideTimer();
-  }, [book, resetHideTimer]);
+  }, [book]);
+
+  // Tap content area to toggle chrome (ignore taps on selection / interactive UI)
+  const handleContentTap = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, a, input, textarea, [data-paragraph-index] span')) return;
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) return;
+    setShowUI(v => !v);
+  }, []);
 
   // Keyboard nav
   useEffect(() => {
@@ -307,9 +302,9 @@ export default function ReaderPage() {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="min-h-screen relative"
-      onClick={resetHideTimer}
       style={{ background: themeConfig.background, color: themeConfig.text }}
+      className="min-h-screen relative"
+      onClick={handleContentTap}
     >
       {/* Progress bar at very top */}
       <div className="fixed top-0 left-0 right-0 h-0.5 bg-muted z-50">
@@ -321,15 +316,14 @@ export default function ReaderPage() {
       </div>
 
       {/* Top bar */}
-      <AnimatePresence>
-        {showUI && (
-          <motion.header
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-0 left-0 right-0 z-40 px-4 pt-3 pb-2 flex items-center justify-between"
-            style={{ background: `linear-gradient(to bottom, ${themeConfig.background}, transparent)` }}
-          >
+      <header
+        className="fixed top-0 left-0 right-0 z-40 px-4 pt-3 pb-2 flex items-center justify-between transition-opacity duration-200"
+        style={{
+          background: `linear-gradient(to bottom, ${themeConfig.background}, transparent)`,
+          opacity: showUI ? 1 : 0,
+          pointerEvents: showUI ? 'auto' : 'none',
+        }}
+      >
             <button
               onClick={() => navigate('/')}
               className="w-10 h-10 rounded-full bg-muted/80 backdrop-blur flex items-center justify-center text-foreground"
@@ -343,15 +337,13 @@ export default function ReaderPage() {
               </p>
             </div>
             <button
-              onClick={(e) => { e.stopPropagation(); setPanelOpen(true); resetHideTimer(); }}
+              onClick={(e) => { e.stopPropagation(); setPanelOpen(true); }}
               className="w-10 h-10 rounded-full bg-muted/80 backdrop-blur flex items-center justify-center text-foreground"
               aria-label="Typography settings"
             >
               <SlidersHorizontal className="w-5 h-5" />
             </button>
-          </motion.header>
-        )}
-      </AnimatePresence>
+      </header>
 
       {/* Reading content */}
       <div
@@ -442,23 +434,6 @@ export default function ReaderPage() {
             EPUB rendering coming soon. PDF files are fully supported.
           </p>
         )}
-      </div>
-
-      {/* Navigation overlay - tap left/right sides */}
-      <div className="fixed inset-0 z-30 flex pointer-events-none">
-        <button
-          onClick={() => goPage(-1)}
-          className="w-1/3 h-full pointer-events-auto opacity-0 active:opacity-100 flex items-center justify-start pl-2"
-        >
-          <ChevronLeft className="w-8 h-8 text-muted-foreground/50" />
-        </button>
-        <div className="flex-1" />
-        <button
-          onClick={() => goPage(1)}
-          className="w-1/3 h-full pointer-events-auto opacity-0 active:opacity-100 flex items-center justify-end pr-2"
-        >
-          <ChevronRight className="w-8 h-8 text-muted-foreground/50" />
-        </button>
       </div>
 
       {/* Bottom bar */}
