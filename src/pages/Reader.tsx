@@ -19,7 +19,7 @@ export default function ReaderPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [paragraphs, setParagraphs] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showUI, setShowUI] = useState(false);
+  const [showUI, setShowUI] = useState(true);
   const [panelOpen, setPanelOpen] = useState(false);
   const { settings, update } = useTypography();
   const { theme, themeConfig, setTheme } = useTheme();
