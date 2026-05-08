@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronLeft, ChevronRight, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ArrowLeft, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getBook, updateBookProgress, type Book } from '@/lib/db';
 import { parsePDF, type ParsedPDF, type Block } from '@/lib/pdf-parser';
@@ -16,8 +16,8 @@ export default function ReaderPage() {
   const navigate = useNavigate();
   const [book, setBook] = useState<Book | null>(null);
   const [parsedPDF, setParsedPDF] = useState<ParsedPDF | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [paragraphs, setParagraphs] = useState<Block[]>([]);
+  const [allBlocks, setAllBlocks] = useState<Array<{ block: Block; pageNum: number; indexInPage: number }>>([]);
+  const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showUI, setShowUI] = useState(true);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -25,7 +25,6 @@ export default function ReaderPage() {
   const { theme, themeConfig, setTheme } = useTheme();
   const contentRef = useRef<HTMLDivElement>(null);
   const chaptersFoundRef = useRef(false);
-  const chaptersScannedRef = useRef(false);
   const { highlights, add: addHl, remove: removeHl } = useHighlights(id);
   const highlightColor = getHighlightColor(theme);
   const [selectionBar, setSelectionBar] = useState<{ x: number; y: number; height: number; paragraphIndex: number; start: number; end: number; text: string } | null>(null);
@@ -43,61 +42,52 @@ export default function ReaderPage() {
       if (b.type === 'pdf') {
         const parsed = await parsePDF(b.fileData);
         setParsedPDF(parsed);
-        setCurrentPage(b.currentPage > 0 ? b.currentPage : 1);
-      } else {
-        // EPUB — render in iframe later
-        setCurrentPage(b.currentPage > 0 ? b.currentPage : 1);
       }
       setLoading(false);
     })();
   }, [id, navigate]);
 
-  // Load page text for PDF
+  // Load ALL pages into one continuous flat block array
   useEffect(() => {
-    if (!parsedPDF || currentPage < 1) return;
+    if (!parsedPDF) return;
+    let cancelled = false;
     (async () => {
-      const blocks = await parsedPDF.getPageParagraphs(currentPage);
-      setParagraphs(blocks);
-      if (blocks.some(b => b.type === 'chapter')) chaptersFoundRef.current = true;
-      contentRef.current?.scrollTo(0, 0);
-    })();
-  }, [parsedPDF, currentPage]);
-
-  // After full book load attempt, if no chapters detected anywhere, show toast
-  useEffect(() => {
-    if (!parsedPDF || !book || chaptersScannedRef.current) return;
-    chaptersScannedRef.current = true;
-    (async () => {
-      // Quick scan: sample up to 12 pages spread across the book
       const total = parsedPDF.totalPages;
-      const samples = Math.min(12, total);
-      const step = Math.max(1, Math.floor(total / samples));
-      for (let p = 1; p <= total; p += step) {
-        if (chaptersFoundRef.current) return;
+      const acc: Array<{ block: Block; pageNum: number; indexInPage: number }> = [];
+      let foundChapter = false;
+      for (let p = 1; p <= total; p++) {
         try {
           const blocks = await parsedPDF.getPageParagraphs(p);
-          if (blocks.some(b => b.type === 'chapter')) {
-            chaptersFoundRef.current = true;
-            return;
+          blocks.forEach((b, i) => acc.push({ block: b, pageNum: p, indexInPage: i }));
+          if (!foundChapter && blocks.some(b => b.type === 'chapter')) foundChapter = true;
+          if (p % 5 === 0 || p === total) {
+            if (cancelled) return;
+            setAllBlocks([...acc]);
           }
         } catch {}
       }
-      if (!chaptersFoundRef.current) {
+      chaptersFoundRef.current = foundChapter;
+      if (!foundChapter) {
         toast("Chapters couldn't be detected. Reading in continuous mode.", { duration: 3000 });
       }
     })();
-  }, [parsedPDF, book]);
+    return () => { cancelled = true; };
+  }, [parsedPDF]);
 
-  // Auto-save progress
+  // Track scroll progress on the window (root) scroller
   useEffect(() => {
-    if (!book || !currentPage) return;
-    const progress = currentPage / (book.totalPages || 1);
-    updateBookProgress(book.id, currentPage, progress);
-  }, [book, currentPage]);
-
-  const goPage = useCallback((delta: number) => {
-    if (!book) return;
-    setCurrentPage(p => Math.max(1, Math.min(book.totalPages, p + delta)));
+    const onScroll = () => {
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - doc.clientHeight;
+      const pct = max > 0 ? Math.min(1, Math.max(0, doc.scrollTop / max)) : 0;
+      setProgress(pct);
+      if (book) {
+        const page = Math.max(1, Math.round(pct * (book.totalPages || 1)));
+        updateBookProgress(book.id, page, pct);
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, [book]);
 
   // Tap content area to toggle chrome (ignore taps on selection / interactive UI)
@@ -109,16 +99,14 @@ export default function ReaderPage() {
     setShowUI(v => !v);
   }, []);
 
-  // Keyboard nav
+  // Keyboard nav (Esc returns to library)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === ' ') goPage(1);
-      if (e.key === 'ArrowLeft') goPage(-1);
       if (e.key === 'Escape') navigate('/');
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [goPage, navigate]);
+  }, [navigate]);
 
   // Selection detection (selectionchange for native long-press support)
   useEffect(() => {
@@ -178,6 +166,7 @@ export default function ReaderPage() {
         y: rect.top,
         height: rect.height,
         paragraphIndex: parseInt(startP.dataset.paragraphIndex!, 10),
+        pageNum: parseInt(startP.dataset.pageNum!, 10),
         start,
         end,
         text,
@@ -194,18 +183,12 @@ export default function ReaderPage() {
     };
   }, []);
 
-  // Reset selection/tooltip when page changes
-  useEffect(() => {
-    setSelectionBar(null);
-    setActiveHighlight(null);
-  }, [currentPage]);
-
   const commitHighlight = useCallback(async () => {
     if (!selectionBar || !id) return;
     const h: Highlight = {
       id: crypto.randomUUID(),
       bookId: id,
-      pageNum: currentPage,
+      pageNum: selectionBar.pageNum,
       paragraphIndex: selectionBar.paragraphIndex,
       start: selectionBar.start,
       end: selectionBar.end,
@@ -215,12 +198,13 @@ export default function ReaderPage() {
     await addHl(h);
     window.getSelection()?.removeAllRanges();
     setSelectionBar(null);
-  }, [selectionBar, id, currentPage, addHl]);
+  }, [selectionBar, id, addHl]);
 
   const openNoteSheet = useCallback(() => {
     if (!selectionBar) return;
     setNoteSheet({
       paragraphIndex: selectionBar.paragraphIndex,
+      pageNum: selectionBar.pageNum,
       start: selectionBar.start,
       end: selectionBar.end,
       text: selectionBar.text,
@@ -233,7 +217,7 @@ export default function ReaderPage() {
     const h: Highlight = {
       id: crypto.randomUUID(),
       bookId: id,
-      pageNum: currentPage,
+      pageNum: noteSheet.pageNum,
       paragraphIndex: noteSheet.paragraphIndex,
       start: noteSheet.start,
       end: noteSheet.end,
@@ -244,12 +228,12 @@ export default function ReaderPage() {
     await addHl(h);
     window.getSelection()?.removeAllRanges();
     setNoteSheet(null);
-  }, [noteSheet, id, currentPage, addHl]);
+  }, [noteSheet, id, addHl]);
 
   // Render paragraph text with highlight underlines
-  const renderParagraphText = (text: string, paraIdx: number) => {
+  const renderParagraphText = (text: string, paraIdx: number, pageNum: number) => {
     const hls = highlights
-      .filter(h => h.pageNum === currentPage && h.paragraphIndex === paraIdx && h.start < text.length)
+      .filter(h => h.pageNum === pageNum && h.paragraphIndex === paraIdx && h.start < text.length)
       .map(h => ({ ...h, end: Math.min(h.end, text.length) }))
       .sort((a, b) => a.start - b.start);
     if (hls.length === 0) return text;
@@ -282,7 +266,7 @@ export default function ReaderPage() {
     return parts;
   };
 
-  const progress = book ? (currentPage / (book.totalPages || 1)) * 100 : 0;
+  const progressPct = progress * 100;
 
   if (loading) {
     return (
@@ -310,7 +294,7 @@ export default function ReaderPage() {
       <div className="fixed top-0 left-0 right-0 h-0.5 bg-muted z-50">
         <motion.div
           className="h-full bg-reader-progress"
-          animate={{ width: `${progress}%` }}
+          animate={{ width: `${progressPct}%` }}
           transition={{ duration: 0.3 }}
         />
       </div>
@@ -333,7 +317,7 @@ export default function ReaderPage() {
             <div className="text-center flex-1 mx-4">
               <p className="text-xs font-ui font-medium text-muted-foreground truncate">{book?.title}</p>
               <p className="text-[10px] text-muted-foreground">
-                Page {currentPage} of {book?.totalPages}
+                {Math.round(progressPct)}%
               </p>
             </div>
             <button
@@ -348,7 +332,7 @@ export default function ReaderPage() {
       {/* Reading content */}
       <div
         ref={contentRef}
-        className="min-h-screen py-20 max-w-3xl mx-auto overflow-y-auto scrollbar-hide"
+        className="min-h-screen py-20 max-w-3xl mx-auto"
         style={{
           paddingLeft: `${MARGIN_VALUES[settings.margins]}px`,
           paddingRight: `${MARGIN_VALUES[settings.margins]}px`,
@@ -367,8 +351,8 @@ export default function ReaderPage() {
               letterSpacing: '0.01em',
             }}
           >
-            {paragraphs.length > 0 ? (
-              paragraphs.map((block, i) =>
+            {allBlocks.length > 0 ? (
+              allBlocks.map(({ block, pageNum, indexInPage }, i) =>
                 block.type === 'chapter' ? (
                   <h2
                     key={i}
@@ -409,7 +393,8 @@ export default function ReaderPage() {
                 ) : (
                   <p
                     key={i}
-                    data-paragraph-index={i}
+                    data-paragraph-index={indexInPage}
+                    data-page-num={pageNum}
                     style={{
                       marginBottom: '1.4em',
                       textIndent: 0,
@@ -417,13 +402,13 @@ export default function ReaderPage() {
                       wordBreak: 'break-word',
                     }}
                   >
-                    {renderParagraphText(block.text, i)}
+                    {renderParagraphText(block.text, indexInPage, pageNum)}
                   </p>
                 )
               )
             ) : (
               <p className="text-muted-foreground italic text-center mt-20">
-                No readable text on this page.
+                Loading…
               </p>
             )}
           </div>
@@ -435,37 +420,6 @@ export default function ReaderPage() {
           </p>
         )}
       </div>
-
-      {/* Bottom bar */}
-      <AnimatePresence>
-        {showUI && (
-          <motion.footer
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-0 left-0 right-0 z-40 px-4 pb-4 pt-8 flex items-center justify-center gap-4"
-            style={{ background: `linear-gradient(to top, ${themeConfig.background}, transparent)` }}
-          >
-            <button
-              onClick={() => goPage(-1)}
-              disabled={currentPage <= 1}
-              className="w-10 h-10 rounded-full bg-muted/80 backdrop-blur flex items-center justify-center text-foreground disabled:opacity-30"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <span className="text-xs font-ui text-muted-foreground tabular-nums min-w-[60px] text-center">
-              {Math.round(progress)}%
-            </span>
-            <button
-              onClick={() => goPage(1)}
-              disabled={currentPage >= (book?.totalPages || 1)}
-              className="w-10 h-10 rounded-full bg-muted/80 backdrop-blur flex items-center justify-center text-foreground disabled:opacity-30"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </motion.footer>
-        )}
-      </AnimatePresence>
 
       <TypographyPanel
         open={panelOpen}
